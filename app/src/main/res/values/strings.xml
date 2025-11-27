@@ -1,0 +1,12 @@
+<!-- En res/values/strings.xml -->
+<resources>
+    <string name="app_name">receta-2</string>    <!-- ✅ Títulos cortos, directos y visualmente distintos -->
+    <string name="category_group_meal_type">Platos</string>
+    <string name="category_group_time_of_day">Momentos</string>
+    <string name="category_group_cuisine_style">Cocinas</string>
+    <string name="category_group_dietary_need">Dietas</string>
+    <string name="category_group_cooking_method">Métodos</string>
+    <string name="category_group_special_occasion">Ocasiones</string>
+    <string name="category_group_difficulty">Dificultad</string>
+
+</resources>
