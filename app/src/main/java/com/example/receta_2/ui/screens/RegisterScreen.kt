@@ -10,15 +10,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.receta_2.navigation.AppScreen
 import com.example.receta_2.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     navController: NavController,
-    authViewModel: AuthViewModel = viewModel()
+    authViewModel: AuthViewModel
 ) {
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -43,7 +43,7 @@ fun RegisterScreen(
                 title = { Text("Crear Cuenta") },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, "Volver")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
@@ -73,7 +73,9 @@ fun RegisterScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            if (!isEmailValid && email.isNotEmpty()) Text("Introduce un correo válido", color = MaterialTheme.colorScheme.error)
+            if (!isEmailValid && email.isNotEmpty()) {
+                Text("Introduce un correo válido", color = MaterialTheme.colorScheme.error)
+            }
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(
                 value = password,
@@ -94,9 +96,13 @@ fun RegisterScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            if (!doPasswordsMatch && confirmPassword.isNotEmpty()) Text("Las contraseñas no coinciden", color = MaterialTheme.colorScheme.error)
+            if (!doPasswordsMatch && confirmPassword.isNotEmpty()) {
+                Text("Las contraseñas no coinciden", color = MaterialTheme.colorScheme.error)
+            }
             Spacer(Modifier.height(16.dp))
-            if (!errorMessage.isNullOrEmpty()) Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
+            if (!errorMessage.isNullOrEmpty()) {
+                Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
+            }
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = {
@@ -105,17 +111,14 @@ fun RegisterScreen(
                         email = email,
                         password = password
                     ) {
-                        // Registro exitoso, navegar a Login
-                        navController.navigate("login") {
-                            popUpTo("login") { inclusive = true }
+                        navController.navigate(AppScreen.Login.route) {
+                            popUpTo(AppScreen.Login.route) { inclusive = true }
                         }
                     }
                 },
                 enabled = isFormValid,
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Registrarme")
-            }
+            ) { Text("Registrarme") }
         }
     }
 }

@@ -2,29 +2,40 @@ package com.example.receta_2.data.remote
 
 import com.example.receta_2.data.model.Categoria
 import retrofit2.Response
-import retrofit2.http.Body
-import retrofit2.http.DELETE
-import retrofit2.http.GET
-import retrofit2.http.POST
-import retrofit2.http.Path
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.*
 
 interface CategoriaApiService {
-
     @GET("api/categorias")
-    suspend fun getCategorias(): List<Categoria>
+    suspend fun listarCategorias(): Response<List<Categoria>>
 
     @GET("api/categorias/{id}")
-    suspend fun getCategoriaPorId(@Path("id") id: Int): Categoria
+    suspend fun obtenerCategoria(@Path("id") id: Int): Response<Categoria>
+
+    @GET("api/categorias/nombre/{nombre}")
+    suspend fun obtenerPorNombre(@Path("nombre") nombre: String): Response<Categoria>
 
     @POST("api/categorias")
     suspend fun crearCategoria(@Body categoria: Categoria): Response<Categoria>
 
+    @PUT("api/categorias/{id}")
+    suspend fun actualizarCategoria(@Path("id") id: Int, @Body categoria: Categoria): Response<Categoria>
+
+    @PATCH("api/categorias/{id}")
+    suspend fun actualizarParcial(@Path("id") id: Int, @Body cambios: Categoria): Response<Categoria>
+
     @DELETE("api/categorias/{id}")
-    suspend fun eliminarCategoria(@Path("id") id: Int): Response<Unit>
+    suspend fun eliminarCategoria(@Path("id") id: Int): Response<Void>
 
-    @GET("api/categorias/nombre/{nombre}")
-    suspend fun getCategoriaPorNombre(@Path("nombre") nombre: String): Categoria
+    companion object {
+        fun create(): CategoriaApiService {
+            val retrofit = Retrofit.Builder()
+                .baseUrl("https://recetaback-main.onrender.com/") // 🔁 Reemplaza con tu URL real
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
 
-    @GET("api/categorias/existe/{nombre}")
-    suspend fun existeCategoriaPorNombre(@Path("nombre") nombre: String): Boolean
+            return retrofit.create(CategoriaApiService::class.java)
+        }
+    }
 }

@@ -2,29 +2,37 @@ package com.example.receta_2.data.remote
 
 import com.example.receta_2.data.model.Subcategoria
 import retrofit2.Response
-import retrofit2.http.Body
-import retrofit2.http.DELETE
-import retrofit2.http.GET
-import retrofit2.http.POST
-import retrofit2.http.Path
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.*
 
 interface SubcategoriaApiService {
-
     @GET("api/subcategorias")
-    suspend fun getSubcategorias(): List<Subcategoria>
+    suspend fun listarSubcategorias(): Response<List<Subcategoria>>
 
     @GET("api/subcategorias/{id}")
-    suspend fun getSubcategoriaPorId(@Path("id") id: Int): Subcategoria
+    suspend fun obtenerPorId(@Path("id") id: Int): Response<Subcategoria>
 
     @POST("api/subcategorias")
-    suspend fun crearSubcategoria(@Body subcategoria: Subcategoria): Response<Subcategoria>
+    suspend fun crearSubcategoria(@Body sub: Subcategoria): Response<Subcategoria>
+
+    @PUT("api/subcategorias/{id}")
+    suspend fun actualizar(@Path("id") id: Int, @Body subcategoria: Subcategoria): Response<Subcategoria>
+
+    @PATCH("api/subcategorias/{id}")
+    suspend fun actualizarParcial(@Path("id") id: Int, @Body cambios: Subcategoria): Response<Subcategoria>
 
     @DELETE("api/subcategorias/{id}")
-    suspend fun eliminarSubcategoria(@Path("id") id: Int): Response<Unit>
+    suspend fun eliminar(@Path("id") id: Int): Response<Void>
 
-    @GET("api/subcategorias/categoria/{categoriaId}")
-    suspend fun buscarPorCategoriaId(@Path("categoriaId") categoriaId: Int): List<Subcategoria>
+    companion object {
+        fun create(): SubcategoriaApiService {
+            val retrofit = Retrofit.Builder()
+                .baseUrl("https://recetaback-main.onrender.com/") // 🔁 Reemplaza con tu URL real
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
 
-    @GET("api/subcategorias/nombre/{nombre}")
-    suspend fun buscarPorNombre(@Path("nombre") nombre: String): Subcategoria
+            return retrofit.create(SubcategoriaApiService::class.java)
+        }
+    }
 }

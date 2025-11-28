@@ -9,49 +9,42 @@ object RetrofitInstance {
 
     private const val BASE_URL = "https://recetaback-main.onrender.com/"
 
-    private val client = OkHttpClient.Builder()
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        })
-        .build()
+    // Cliente HTTP con logging
+    private val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            })
+            .build()
+    }
 
-    // Servicio de Usuarios
+    // Instancia única de Retrofit
+    private val retrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(client)
+            .build()
+    }
+
+    // Servicios disponibles
     val apiUsuario: UsuarioApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(UsuarioApiService::class.java)
+        retrofit.create(UsuarioApiService::class.java)
     }
 
-    // Servicio de Recetas
     val apiRecetas: RecetaApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .client(client)
-            .build()
-            .create(RecetaApiService::class.java)
+        retrofit.create(RecetaApiService::class.java)
     }
 
-    // Servicio de Categorías
     val apiCategorias: CategoriaApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .client(client)
-            .build()
-            .create(CategoriaApiService::class.java)
+        retrofit.create(CategoriaApiService::class.java)
     }
 
-    // Servicio de Subcategorías
     val apiSubcategorias: SubcategoriaApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .client(client)
-            .build()
-            .create(SubcategoriaApiService::class.java)
+        retrofit.create(SubcategoriaApiService::class.java)
     }
 
+    val apiImagenes: ImagenRecetaApiService by lazy {
+        retrofit.create(ImagenRecetaApiService::class.java)
+    }
 }

@@ -2,7 +2,9 @@ package com.example.receta_2.data.model
 
 data class Usuario(
     val id: Int? = null,
-    val nombre: String,
+    val nombre: String? = null,
     val email: String,
-    val password: String? = null
+    val password: String,
+    val telefono: String? = null,
+    val fechaRegistro: String? = null
 )

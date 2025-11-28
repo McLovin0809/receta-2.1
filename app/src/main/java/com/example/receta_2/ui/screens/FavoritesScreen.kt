@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.receta_2.ui.components.RecipeItemCard
 import com.example.receta_2.viewmodel.FavoritesViewModel
+import com.example.receta_2.data.model.Receta
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,18 +38,21 @@ fun FavoritesScreen(
         }
     ) { paddingValues ->
         if (favoriteRecipes.isEmpty()) {
-            Text("Aún no has guardado recetas favoritas.", modifier = Modifier.padding(paddingValues).padding(16.dp))
+            Text(
+                "Aún no has guardado recetas favoritas.",
+                modifier = Modifier.padding(paddingValues).padding(16.dp)
+            )
         } else {
             LazyColumn(
                 modifier = Modifier.padding(paddingValues),
                 contentPadding = PaddingValues(16.dp)
             ) {
-                items(favoriteRecipes, key = { it.id }) { recipe ->
+                items(favoriteRecipes, key = { it.id ?: 0 }) { receta: Receta ->
                     RecipeItemCard(
-                        recipe = recipe,
+                        recipe = receta,
                         isFavorite = true,
-                        onToggleFavorite = { favoritesViewModel.toggleFavorite(recipe.id) },
-                        onDetailsClick = { navController.navigate("recipe_detail/${recipe.id}") },
+                        onToggleFavorite = { favoritesViewModel.toggleFavorite(receta) },
+                        onDetailsClick = { navController.navigate("recipe_detail/${receta.id}") },
                         isLoggedIn = isLoggedIn
                     )
                     Spacer(Modifier.padding(8.dp))

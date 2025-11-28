@@ -10,8 +10,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.receta_2.data.remote.*
+import com.example.receta_2.data.repository.RecetaRepository
 import com.example.receta_2.navigation.AppBottomBar
 import com.example.receta_2.navigation.AppScreen
 import com.example.receta_2.navigation.ExtraRoutes
@@ -20,15 +24,32 @@ import com.example.receta_2.ui.theme.Receta2Theme
 import com.example.receta_2.viewmodel.AuthViewModel
 import com.example.receta_2.viewmodel.FavoritesViewModel
 import com.example.receta_2.viewmodel.RecipeViewModel
+import com.example.receta_2.viewmodel.RecipeViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // ✅ Inicializamos Retrofit y el repositorio con TODOS los servicios
+        val recetaApiService = RecetaApiService.create()
+        val imagenApiService = ImagenRecetaApiService.create()
+        val categoriaApiService = CategoriaApiService.create()
+        val subcategoriaApiService = SubcategoriaApiService.create()
+
+        val recetaRepository = RecetaRepository(
+            apiRecetas = recetaApiService,
+            apiImagen = imagenApiService,
+            apiCategorias = categoriaApiService,
+            apiSubcategorias = subcategoriaApiService
+        )
+
         setContent {
             Receta2Theme {
                 val authViewModel: AuthViewModel = viewModel()
                 val favoritesViewModel: FavoritesViewModel = viewModel()
-                val recipeViewModel: RecipeViewModel = viewModel()
+                val recipeViewModel: RecipeViewModel = viewModel(
+                    factory = RecipeViewModelFactory(recetaRepository)
+                )
 
                 val navController = rememberNavController()
                 val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
@@ -45,6 +66,7 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 isLoggedIn = isLoggedIn,
                                 navController = navController,
+                                recipeViewModel = recipeViewModel,
                                 onProfileClick = { navController.navigate(AppScreen.Profile.route) },
                                 onFavoritesClick = {
                                     if (isLoggedIn) {
@@ -60,7 +82,11 @@ class MainActivity : ComponentActivity() {
 
                         composable("favorites") {
                             if (isLoggedIn) {
-                                FavoritesScreen(navController, favoritesViewModel, isLoggedIn)
+                                FavoritesScreen(
+                                    navController = navController,
+                                    favoritesViewModel = favoritesViewModel,
+                                    isLoggedIn = isLoggedIn
+                                )
                             } else {
                                 navController.navigate(AppScreen.Login.route) {
                                     popUpTo("favorites") { inclusive = true }
@@ -71,6 +97,7 @@ class MainActivity : ComponentActivity() {
                         composable(AppScreen.Profile.route) {
                             if (isLoggedIn) {
                                 ProfileScreen(
+                                    authViewModel = authViewModel,
                                     onSettingsClick = { navController.navigate(ExtraRoutes.SETTINGS) },
                                     onLogoutClick = {
                                         authViewModel.logout()
@@ -89,13 +116,13 @@ class MainActivity : ComponentActivity() {
                         composable(
                             route = "recipe_list/{categoryId}/{categoryName}",
                             arguments = listOf(
-                                navArgument("categoryId") { type = NavType.StringType },
+                                navArgument("categoryId") { type = NavType.IntType },
                                 navArgument("categoryName") { type = NavType.StringType }
                             )
                         ) { entry ->
                             RecipeListScreen(
                                 navController = navController,
-                                categoryId = entry.arguments?.getString("categoryId"),
+                                categoryId = entry.arguments?.getInt("categoryId"),
                                 categoryName = entry.arguments?.getString("categoryName"),
                                 favoritesViewModel = favoritesViewModel,
                                 recipeViewModel = recipeViewModel,
@@ -105,25 +132,20 @@ class MainActivity : ComponentActivity() {
 
                         composable(
                             route = "recipe_detail/{recipeId}",
-                            arguments = listOf(navArgument("recipeId") { type = NavType.StringType })
+                            arguments = listOf(navArgument("recipeId") { type = NavType.IntType })
                         ) { entry ->
-                            entry.arguments?.getString("recipeId")?.let { id ->
-                                recipeViewModel.loadRecipeById(id)
+                            entry.arguments?.getInt("recipeId")?.let { id ->
+                                recipeViewModel.cargarDetalle(id)
                             }
                             RecipeDetailScreen(navController = navController, recipeViewModel = recipeViewModel)
                         }
 
                         composable(AppScreen.Login.route) {
-                            // Aquí pasamos el authViewModel, navController, y la función onLoginSuccess
                             LoginScreen(
                                 authViewModel = authViewModel,
                                 navController = navController,
                                 onRegisterClick = { navController.navigate(ExtraRoutes.REGISTER) },
-                                onLoginSuccess = { email, password ->
-                                    // Al hacer login exitoso, llamamos a la función login del ViewModel
-                                    authViewModel.login(email, password)
-
-                                    // Navegar a la pantalla principal después de un login exitoso
+                                onLoginSuccess = {
                                     navController.navigate(AppScreen.Home.route) {
                                         popUpTo(navController.graph.id) { inclusive = true }
                                     }
@@ -135,11 +157,17 @@ class MainActivity : ComponentActivity() {
                             RegisterScreen(navController = navController, authViewModel = authViewModel)
                         }
 
-                        composable(ExtraRoutes.SETTINGS) { SettingsScreen() }
+                        composable(ExtraRoutes.SETTINGS) {
+                            SettingsScreen(navController = navController, authViewModel = authViewModel)
+                        }
 
                         composable(ExtraRoutes.ADD_RECIPE) {
                             if (isLoggedIn) {
-                                AddRecipeScreen(navController = navController, recipeViewModel = recipeViewModel)
+                                AddRecipeScreen(
+                                    navController = navController,
+                                    recipeViewModel = recipeViewModel,
+                                    currentUser = authViewModel.currentUser.collectAsState().value
+                                )
                             } else {
                                 navController.navigate(AppScreen.Login.route) {
                                     popUpTo(ExtraRoutes.ADD_RECIPE) { inclusive = true }

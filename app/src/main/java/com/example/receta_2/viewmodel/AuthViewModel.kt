@@ -1,65 +1,64 @@
 package com.example.receta_2.viewmodel
 
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.lifecycle.viewModelScope
 import com.example.receta_2.data.model.Usuario
-import com.example.receta_2.data.repository.UsuarioRepository
+import com.example.receta_2.data.repository.AuthRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class AuthViewModel : ViewModel() {
+class AuthViewModel(
+    private val repository: AuthRepository = AuthRepository()
+) : ViewModel() {
 
-    private val usuarioRepository = UsuarioRepository()
-
-    // Estado de login
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
 
-    // Estado de errores
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
-    // Función para login
+    private val _currentUser = MutableStateFlow<Usuario?>(null)
+    val currentUser: StateFlow<Usuario?> = _currentUser
+
     fun login(email: String, password: String) {
         viewModelScope.launch {
             try {
-                val usuario = usuarioRepository.login(email, password)
-                if (usuario != null) {
-                    _isLoggedIn.value = true // Aquí debería cambiar a true
-                    _errorMessage.value = null // Limpiar errores
+                val response = repository.login(email, password)
+                if (response.isSuccessful) {
+                    _currentUser.value = response.body()
+                    _isLoggedIn.value = true
+                    _errorMessage.value = null
                 } else {
-                    _errorMessage.value = "Correo o contraseña incorrectos"
+                    _errorMessage.value = "Credenciales incorrectas"
+                    _isLoggedIn.value = false
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Error al iniciar sesión: ${e.message}"
+                _errorMessage.value = "Error de conexión: ${e.message}"
+                _isLoggedIn.value = false
             }
         }
     }
 
-    // Función para logout
-    fun logout() {
-        _isLoggedIn.value = false
-    }
-
-    // Función para registro
     fun register(nombre: String, email: String, password: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             try {
-                val nuevoUsuario = Usuario(nombre = nombre, email = email, password = password)
-                val response = usuarioRepository.crearUsuario(nuevoUsuario) // Suponiendo que este método realiza la llamada a la API
+                val response = repository.register(nombre, email, password)
                 if (response.isSuccessful) {
-                    // Si la respuesta es exitosa, ejecutamos el callback onSuccess
+                    _currentUser.value = response.body()
+                    _errorMessage.value = null
                     onSuccess()
-                    _errorMessage.value = null // Limpiar errores
                 } else {
-                    // Si el código de respuesta no es exitoso, mostramos el error
-                    _errorMessage.value = "Error al registrar: ${response.code()}"
+                    _errorMessage.value = "No se pudo registrar"
                 }
             } catch (e: Exception) {
-                // Si ocurre una excepción, mostramos el error en el mensaje
-                _errorMessage.value = "Excepción: ${e.message}"
+                _errorMessage.value = "Error de conexión: ${e.message}"
             }
         }
+    }
+
+    fun logout() {
+        _isLoggedIn.value = false
+        _currentUser.value = null
     }
 }

@@ -45,6 +45,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("io.coil-kt:coil-video:2.5.0")
     implementation ("androidx.room:room-runtime:2.6.1")
+    implementation(libs.androidx.compose.foundation)
     kapt("androidx.room:room-compiler:2.6.1")
     implementation ("androidx.room:room-ktx:2.6.1")
     implementation("androidx.compose.material:material-icons-extended-android:1.7.8")

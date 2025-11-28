@@ -1,5 +1,6 @@
 package com.example.receta_2.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,12 +26,12 @@ fun RecipeDetailScreen(
     navController: NavController,
     recipeViewModel: RecipeViewModel
 ) {
-    val recipe by recipeViewModel.currentRecipe.collectAsState()
+    val recipe by recipeViewModel.recetaDetalle.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(recipe?.name ?: "Detalle", maxLines = 1) },
+                title = { Text(recipe?.titulo ?: "Detalle", maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -39,43 +40,61 @@ fun RecipeDetailScreen(
             )
         }
     ) { paddingValues ->
-        recipe?.let { r ->
+        if (recipe == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
             Column(
                 modifier = Modifier
                     .padding(paddingValues)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current).data(r.image).crossfade(true).build(),
-                    contentDescription = r.name,
-                    modifier = Modifier.fillMaxWidth().height(250.dp),
-                    contentScale = ContentScale.Crop
-                )
+                if (!recipe!!.imagenUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(recipe!!.imagenUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = recipe!!.titulo,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(r.name, style = MaterialTheme.typography.headlineLarge)
+                    Text(recipe!!.titulo, style = MaterialTheme.typography.headlineLarge)
                     Spacer(Modifier.height(8.dp))
-                    Text(r.description, style = MaterialTheme.typography.bodyLarge)
+                    Text(recipe!!.descripcion, style = MaterialTheme.typography.bodyLarge)
 
                     Divider(Modifier.padding(vertical = 24.dp))
                     Text("Ingredientes", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(16.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        r.ingredients.forEach { IngredientItem(it) }
+                        recipe!!.ingredientes.lines()
+                            .filter { it.isNotBlank() }
+                            .forEach { IngredientItem(it) }
                     }
 
                     Divider(Modifier.padding(vertical = 24.dp))
                     Text("Preparación", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(16.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        r.steps.forEachIndexed { index, step -> StepItem(index + 1, step) }
+                        recipe!!.instrucciones.lines()
+                            .filter { it.isNotBlank() }
+                            .forEachIndexed { index, step -> StepItem(index + 1, step) }
                     }
                 }
             }
-        } ?: Box(
-            modifier = Modifier.fillMaxSize().padding(paddingValues),
-            contentAlignment = Alignment.Center
-        ) { CircularProgressIndicator() }
+        }
     }
 }
 
@@ -86,6 +105,7 @@ fun IngredientItem(text: String) {
             modifier = Modifier
                 .size(8.dp)
                 .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
         )
         Spacer(Modifier.width(12.dp))
         Text(text = text, style = MaterialTheme.typography.bodyLarge)

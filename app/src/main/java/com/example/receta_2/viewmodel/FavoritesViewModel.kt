@@ -1,28 +1,28 @@
 package com.example.receta_2.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.example.receta_2.data.model.Recipe
-import com.example.receta_2.data.model.sampleRecipes
+import com.example.receta_2.data.model.Receta
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
 class FavoritesViewModel : ViewModel() {
 
-    private val _favoriteRecipeIds = MutableStateFlow<Set<String>>(emptySet())
-    val favoriteRecipeIds = _favoriteRecipeIds.asStateFlow()
+    private val _favoriteRecipes = MutableStateFlow<List<Receta>>(emptyList())
+    val favoriteRecipes: StateFlow<List<Receta>> = _favoriteRecipes
 
-    private val _favoriteRecipes = MutableStateFlow<List<Recipe>>(emptyList())
-    val favoriteRecipes = _favoriteRecipes.asStateFlow()
-
-    fun isFavorite(recipeId: String): Boolean = _favoriteRecipeIds.value.contains(recipeId)
-
-    fun toggleFavorite(recipeId: String) {
-        _favoriteRecipeIds.update { ids ->
-            ids.toMutableSet().apply {
-                if (!add(recipeId)) remove(recipeId)
+    fun toggleFavorite(receta: Receta) {
+        _favoriteRecipes.update { list ->
+            val mutable = list.toMutableList()
+            if (mutable.any { it.id == receta.id }) {
+                mutable.removeAll { it.id == receta.id }
+            } else {
+                mutable.add(receta)
             }
+            mutable
         }
-        _favoriteRecipes.value = sampleRecipes.filter { _favoriteRecipeIds.value.contains(it.id) }
     }
+
+    fun isFavorite(id: Int?): Boolean =
+        _favoriteRecipes.value.any { it.id == id }
 }
