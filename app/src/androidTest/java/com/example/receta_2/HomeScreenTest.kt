@@ -1,198 +1,184 @@
-package com.example.receta_2
+// Test: HomeScreenTest.kt
+package com.example.receta_2.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.unit.dp
-import com.example.receta_2.data.model.SearchCategory
+import com.example.receta_2.data.model.*
 import org.junit.Rule
 import org.junit.Test
 
 /* -------------------------------------------------------------------------
-   MODELOS FAKE PARA TEST
-   ------------------------------------------------------------------------- */
-
-private val fakeCategories = listOf(
-    SearchCategory(
-        id = "1",
-        name = "Postres",
-        image = 0,
-        group = CategoryGroup.DIETARY_NEED,
-        recipeCount = 5
-    ),
-    SearchCategory(
-        id = "2",
-        name = "Pastas",
-        image = 0,
-        group = CategoryGroup.SPECIAL_OCCASION  ,
-        recipeCount = 10
-    )
-)
-
-/* -------------------------------------------------------------------------
-   HOME SCREEN TESTABLE — versión simplificada para pruebas
+   HOME SCREEN TESTABLE - USANDO TUS MODELOS REALES
    ------------------------------------------------------------------------- */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreenTestable(
-    isLoggedIn: Boolean,
+    categorias: List<Categoria> = emptyList(),
+    subcategorias: List<Subcategoria> = emptyList(),
+    recetas: List<Receta> = emptyList(),
     onProfileClick: () -> Unit = {},
-    onFavoritesClick: () -> Unit = {},
-    onFabClick: () -> Unit = {},
-    categories: List<SearchCategory> = fakeCategories
+    onAddRecipeClick: () -> Unit = {},
+    onRecipeClick: (Int) -> Unit = {},
+    onCategoriaSelect: (Categoria) -> Unit = {},
+    onSubcategoriaSelect: (Subcategoria) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var selectedCategoriaIndex by remember { mutableStateOf(0) }
+    var selectedSubcategoriaId by remember { mutableStateOf<Int?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                modifier = Modifier.testTag("topBar"),
-                title = {
-                    Text(
-                        "RecetApp",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                },
+                title = { Text("Recetas") },
                 actions = {
-                    if (isLoggedIn) {
-                        IconButton(onClick = onFavoritesClick, modifier = Modifier.testTag("btnFavoritos")) {
-                            Icon(Icons.Default.Favorite, contentDescription = "")
-                        }
-                        IconButton(onClick = onProfileClick, modifier = Modifier.testTag("btnPerfil")) {
-                            Icon(Icons.Default.Person, contentDescription = "")
-                        }
+                    IconButton(
+                        onClick = onProfileClick,
+                        modifier = Modifier.testTag("btnPerfil")
+                    ) {
+                        Icon(Icons.Default.Person, contentDescription = "Perfil")
                     }
-                }
+                },
+                modifier = Modifier.testTag("topBar")
             )
         },
         floatingActionButton = {
-            if (isLoggedIn) {
-                FloatingActionButton(
-                    modifier = Modifier.testTag("fabAddRecipe"),
-                    onClick = onFabClick
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "")
-                }
+            FloatingActionButton(
+                onClick = onAddRecipeClick,
+                modifier = Modifier.testTag("fabAddRecipe")
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Añadir receta")
             }
         }
-    ) { paddingValues ->
-
-        Column(Modifier.padding(paddingValues)) {
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .testTag("contenedorPrincipal")
+        ) {
 
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
+                placeholder = { Text("Buscar recetas...") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .testTag("inputBuscar"),
-                placeholder = { Text("Buscar...") }
+                    .testTag("inputBuscar")
             )
 
-            CategoryTabsTestable(
-                categories = categories,
-                searchQuery = searchQuery,
-                onCategoryClick = {}
-            )
-        }
-    }
-}
+            if (categorias.isNotEmpty()) {
+                ScrollableTabRow(
+                    selectedTabIndex = selectedCategoriaIndex,
+                    modifier = Modifier.testTag("tabRowCategorias")
+                ) {
+                    categorias.forEachIndexed { index, categoria ->
+                        Tab(
+                            selected = index == selectedCategoriaIndex,
+                            onClick = {
+                                selectedCategoriaIndex = index
+                                selectedSubcategoriaId = null
+                                onCategoriaSelect(categoria)
+                            },
+                            text = { Text(categoria.nombre) },
+                            modifier = Modifier.testTag("tabCategoria_${categoria.id}")
+                        )
+                    }
+                }
+            }
 
-/* -------------------------------------------------------------------------
-   CATEGORY TABS TESTABLE — versión simplificada
-   ------------------------------------------------------------------------- */
+            val categoriaSeleccionada = categorias.getOrNull(selectedCategoriaIndex)
+            val subcatsFiltradas = subcategorias.filter {
+                it.categoria?.id == categoriaSeleccionada?.id
+            }
 
-@Composable
-fun CategoryTabsTestable(
-    categories: List<SearchCategory>,
-    searchQuery: String,
-    onCategoryClick: (SearchCategory) -> Unit
-) {
-    var selectedTab by remember { mutableStateOf(0) }
-    val groups = CategoryGroup.values()
+            if (subcatsFiltradas.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .testTag("rowSubcategorias"),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(subcatsFiltradas) { subcat ->
+                        AssistChip(
+                            onClick = {
+                                selectedSubcategoriaId = subcat.id
+                                onSubcategoriaSelect(subcat)
+                            },
+                            label = { Text(subcat.nombre) },
+                            modifier = Modifier.testTag("chipSubcategoria_${subcat.id}")
+                        )
+                    }
+                }
+            }
 
-    Column {
+            val recetasFiltradas = recetas.filter {
+                (selectedSubcategoriaId == null || it.subcategoria?.id == selectedSubcategoriaId) &&
+                        it.titulo.contains(searchQuery, true)
+            }
 
-        if (searchQuery.isBlank()) {
-            ScrollableTabRow(
-                selectedTabIndex = selectedTab,
-                modifier = Modifier.testTag("tabRow")
-            ) {
-                groups.forEachIndexed { index, group ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        modifier = Modifier.testTag("tab_$index"),
-                        text = { Text(group.name) }
-                    )
+            if (recetasFiltradas.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("mensajeVacio"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No hay recetas")
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(150.dp),
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .testTag("gridRecetas"),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(recetasFiltradas) { receta ->
+                        Card(
+                            modifier = Modifier
+                                .testTag("cardReceta_${receta.id}")
+                                .clickable { onRecipeClick(receta.id ?: 0) },
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Text(
+                                    text = receta.titulo,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.testTag("tituloReceta_${receta.id}")
+                                )
+                                Text(
+                                    text = receta.descripcion.take(50) + "...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.testTag("descripcionReceta_${receta.id}")
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
-
-        val filtered = if (searchQuery.isBlank()) {
-            categories.filter { it.group == groups[selectedTab] }
-        } else {
-            categories.filter { it.name.contains(searchQuery, ignoreCase = true) }
-        }
-
-        if (filtered.isEmpty()) {
-            Text(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .testTag("mensajeVacio"),
-                text = "No se encontraron categorías"
-            )
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .testTag("gridCategorias")
-            ) {
-                items(filtered, key = { it.id }) { cat ->
-                    CategoryCardTestable(
-                        cat,
-                        Modifier.testTag("cat_${cat.id}"),
-                        onCategoryClick
-                    )
-                }
-            }
-        }
-    }
-}
-
-/* -------------------------------------------------------------------------
-   CATEGORY CARD TESTABLE
-   ------------------------------------------------------------------------- */
-
-@Composable
-fun CategoryCardTestable(
-    category: SearchCategory,
-    modifier: Modifier,
-    onClick: (SearchCategory) -> Unit
-) {
-    Card(
-        modifier = modifier,
-        onClick = { onClick(category) }
-    ) {
-        Text(
-            category.name,
-            modifier = Modifier.padding(16.dp)
-        )
     }
 }
 
@@ -205,137 +191,344 @@ class HomeScreenTest {
     @get:Rule
     val rule = createComposeRule()
 
-    private var fabCalled = false
-    private var profileCalled = false
-    private var favoritesCalled = false
+    // Datos de prueba usando tus modelos reales
+    private val categoria1 = Categoria(
+        id = 1,
+        nombre = "Postres",
+        descripcion = "Recetas dulces"
+    )
 
-    /* --- TOP BAR --- */
+    private val categoria2 = Categoria(
+        id = 2,
+        nombre = "Platos Principales",
+        descripcion = "Comidas principales"
+    )
+
+    private val subcategoria1 = Subcategoria(
+        id = 1,
+        nombre = "Tortas",
+        categoria = categoria1
+    )
+
+    private val subcategoria2 = Subcategoria(
+        id = 2,
+        nombre = "Galletas",
+        categoria = categoria1
+    )
+
+    private val subcategoria3 = Subcategoria(
+        id = 3,
+        nombre = "Carnes",
+        categoria = categoria2
+    )
+
+    private val receta1 = Receta(
+        id = 1,
+        titulo = "Brownie de Chocolate",
+        descripcion = "Delicioso brownie casero con nueces",
+        ingredientes = "Chocolate\nHarina\nHuevos\nAzúcar\nNueces",
+        instrucciones = "1. Derretir chocolate\n2. Mezclar ingredientes\n3. Hornear 25 minutos",
+        usuario = IdWrapper(1),
+        categoria = IdWrapper(1),
+        subcategoria = IdWrapper(1)
+    )
+
+    private val receta2 = Receta(
+        id = 2,
+        titulo = "Pizza Casera",
+        descripcion = "Pizza con masa casera y ingredientes frescos",
+        ingredientes = "Harina\nTomate\nQueso\nJamón\nChampiñones",
+        instrucciones = "1. Preparar masa\n2. Agregar ingredientes\n3. Hornear 15 minutos",
+        usuario = IdWrapper(1),
+        categoria = IdWrapper(2),
+        subcategoria = IdWrapper(3)
+    )
+
+    private var profileClickCount = 0
+    private var addRecipeClickCount = 0
+    private var recipeClickId: Int? = null
+    private var categoriaSeleccionada: Categoria? = null
+    private var subcategoriaSeleccionada: Subcategoria? = null
 
     @Test
     fun homeScreen_muestraTopBar() {
-
         rule.setContent {
-            HomeScreenTestable(
-                isLoggedIn = false
-            )
+            HomeScreenTestable()
         }
 
         rule.onNodeWithTag("topBar").assertIsDisplayed()
-    }
-
-    /* --- BOTONES PERFIL Y FAVORITOS --- */
-
-    @Test
-    fun homeScreen_muestraBotonesSiLoggedIn() {
-
-        rule.setContent {
-            HomeScreenTestable(
-                isLoggedIn = true
-            )
-        }
-
-        rule.onNodeWithTag("btnPerfil").assertIsDisplayed()
-        rule.onNodeWithTag("btnFavoritos").assertIsDisplayed()
+        rule.onNodeWithText("Recetas").assertIsDisplayed()
     }
 
     @Test
-    fun homeScreen_noMuestraBotonesSiNoLoggedIn() {
-
+    fun homeScreen_botonPerfilFunciona() {
         rule.setContent {
             HomeScreenTestable(
-                isLoggedIn = false
+                onProfileClick = { profileClickCount++ }
             )
         }
 
-        rule.onNodeWithTag("btnPerfil").assertDoesNotExist()
-        rule.onNodeWithTag("btnFavoritos").assertDoesNotExist()
-    }
-
-    /* --- FAB AÑADIR RECETA --- */
-
-    @Test
-    fun homeScreen_muestraFabSiLoggedIn() {
-
-        rule.setContent {
-            HomeScreenTestable(
-                isLoggedIn = true
-            )
-        }
-
-        rule.onNodeWithTag("fabAddRecipe").assertIsDisplayed()
+        rule.onNodeWithTag("btnPerfil").performClick()
+        assert(profileClickCount == 1)
     }
 
     @Test
-    fun homeScreen_noMuestraFabSiNoLoggedIn() {
-
+    fun homeScreen_fabAddRecipeFunciona() {
         rule.setContent {
             HomeScreenTestable(
-                isLoggedIn = false
+                onAddRecipeClick = { addRecipeClickCount++ }
             )
         }
 
-        rule.onNodeWithTag("fabAddRecipe").assertDoesNotExist()
-    }
-
-    /* --- BÚSQUEDA --- */
-
-    @Test
-    fun homeScreen_busquedaFiltraCategorias() {
-
-        rule.setContent {
-            HomeScreenTestable(
-                isLoggedIn = false
-            )
-        }
-
-        rule.onNodeWithTag("inputBuscar").performTextInput("Postres")
-
-        rule.onNodeWithTag("cat_1").assertIsDisplayed()
-        rule.onNodeWithTag("cat_2").assertDoesNotExist()
+        rule.onNodeWithTag("fabAddRecipe").performClick()
+        assert(addRecipeClickCount == 1)
     }
 
     @Test
-    fun homeScreen_busquedaSinResultados() {
+    fun homeScreen_muestraInputBusqueda() {
+        rule.setContent {
+            HomeScreenTestable()
+        }
 
+        rule.onNodeWithTag("inputBuscar").assertIsDisplayed()
+        rule.onNodeWithText("Buscar recetas...").assertIsDisplayed()
+    }
+
+    @Test
+    fun homeScreen_busquedaFiltraRecetas() {
         rule.setContent {
             HomeScreenTestable(
-                isLoggedIn = false
+                recetas = listOf(receta1, receta2)
             )
         }
 
-        rule.onNodeWithTag("inputBuscar").performTextInput("ZZZ")
+        // Escribir en la búsqueda
+        rule.onNodeWithTag("inputBuscar").performTextInput("Brownie")
+
+        // Solo debería mostrar la receta 1
+        rule.onNodeWithTag("cardReceta_1").assertIsDisplayed()
+        rule.onNodeWithTag("cardReceta_2").assertDoesNotExist()
+    }
+
+    @Test
+    fun homeScreen_muestraTabCategorias() {
+        rule.setContent {
+            HomeScreenTestable(
+                categorias = listOf(categoria1, categoria2)
+            )
+        }
+
+        rule.onNodeWithTag("tabRowCategorias").assertIsDisplayed()
+        rule.onNodeWithTag("tabCategoria_1").assertTextContains("Postres")
+        rule.onNodeWithTag("tabCategoria_2").assertTextContains("Platos Principales")
+    }
+
+    @Test
+    fun homeScreen_tabCategoriaFunciona() {
+        rule.setContent {
+            HomeScreenTestable(
+                categorias = listOf(categoria1, categoria2),
+                onCategoriaSelect = { categoriaSeleccionada = it }
+            )
+        }
+
+        rule.onNodeWithTag("tabCategoria_2").performClick()
+        assert(categoriaSeleccionada?.id == 2)
+    }
+
+    @Test
+    fun homeScreen_muestraSubcategoriasFiltradas() {
+        rule.setContent {
+            HomeScreenTestable(
+                categorias = listOf(categoria1, categoria2),
+                subcategorias = listOf(subcategoria1, subcategoria2, subcategoria3)
+            )
+        }
+
+        // Primero seleccionar categoría 1 (Postres)
+        rule.onNodeWithTag("tabCategoria_1").performClick()
+
+        // Debería mostrar solo subcategorías de Postres
+        rule.onNodeWithTag("rowSubcategorias").assertIsDisplayed()
+        rule.onNodeWithTag("chipSubcategoria_1").assertTextContains("Tortas")
+        rule.onNodeWithTag("chipSubcategoria_2").assertTextContains("Galletas")
+        // No debería mostrar Carnes (ID 3) que es de Platos Principales
+        rule.onNodeWithTag("chipSubcategoria_3").assertDoesNotExist()
+    }
+
+    @Test
+    fun homeScreen_chipSubcategoriaFunciona() {
+        rule.setContent {
+            HomeScreenTestable(
+                categorias = listOf(categoria1),
+                subcategorias = listOf(subcategoria1, subcategoria2),
+                onSubcategoriaSelect = { subcategoriaSeleccionada = it }
+            )
+        }
+
+        rule.onNodeWithTag("chipSubcategoria_1").performClick()
+        assert(subcategoriaSeleccionada?.id == 1)
+    }
+
+    @Test
+    fun homeScreen_muestraMensajeVacio() {
+        rule.setContent {
+            HomeScreenTestable(
+                recetas = emptyList()
+            )
+        }
 
         rule.onNodeWithTag("mensajeVacio").assertIsDisplayed()
+        rule.onNodeWithText("No hay recetas").assertIsDisplayed()
     }
 
-    /* --- TABS --- */
-
     @Test
-    fun homeScreen_tabsFuncionan() {
-
+    fun homeScreen_muestraGridRecetas() {
         rule.setContent {
             HomeScreenTestable(
-                isLoggedIn = false
+                recetas = listOf(receta1, receta2)
             )
         }
 
-        rule.onNodeWithTag("tab_0").assertIsDisplayed()
-        rule.onNodeWithTag("tab_1").assertIsDisplayed()
-
-        rule.onNodeWithTag("tab_1").performClick()
+        rule.onNodeWithTag("gridRecetas").assertIsDisplayed()
+        rule.onNodeWithTag("cardReceta_1").assertIsDisplayed()
+        rule.onNodeWithTag("cardReceta_2").assertIsDisplayed()
     }
 
-    /* --- GRID DE CATEGORÍAS --- */
 
     @Test
-    fun homeScreen_muestraGrid() {
-
+    fun homeScreen_clickRecetaFunciona() {
         rule.setContent {
             HomeScreenTestable(
-                isLoggedIn = false
+                recetas = listOf(receta1),
+                onRecipeClick = { recipeClickId = it }
             )
         }
 
-        rule.onNodeWithTag("gridCategorias").assertIsDisplayed()
+        rule.onNodeWithTag("cardReceta_1").performClick()
+        assert(recipeClickId == 1)
+    }
+
+    @Test
+    fun homeScreen_filtroSubcategoriaFunciona() {
+        rule.setContent {
+            HomeScreenTestable(
+                categorias = listOf(categoria1),
+                subcategorias = listOf(subcategoria1, subcategoria2),
+                recetas = listOf(receta1)
+            )
+        }
+
+        // Seleccionar subcategoría
+        rule.onNodeWithTag("chipSubcategoria_1").performClick()
+
+        // Verificar que las recetas se filtren correctamente
+        rule.onNodeWithTag("gridRecetas").assertIsDisplayed()
+    }
+
+    @Test
+    fun homeScreen_flujoCompleto() {
+        var categoriaSeleccionada: Categoria? = null
+        var subcategoriaSeleccionada: Subcategoria? = null
+
+        rule.setContent {
+            HomeScreenTestable(
+                categorias = listOf(categoria1, categoria2),
+                subcategorias = listOf(subcategoria1, subcategoria2, subcategoria3),
+                recetas = listOf(receta1, receta2),
+                onCategoriaSelect = { categoriaSeleccionada = it },
+                onSubcategoriaSelect = { subcategoriaSeleccionada = it },
+                onRecipeClick = { recipeClickId = it }
+            )
+        }
+
+        // 1. Buscar receta
+        rule.onNodeWithTag("inputBuscar").performTextInput("Pizza")
+        rule.waitForIdle()
+
+        // 2. Seleccionar categoría
+        rule.onNodeWithTag("tabCategoria_2").performClick()
+        rule.waitForIdle()
+        assert(categoriaSeleccionada?.id == 2)
+
+        // 3. Seleccionar subcategoría
+        rule.onNodeWithTag("chipSubcategoria_3").performClick()
+        rule.waitForIdle()
+        assert(subcategoriaSeleccionada?.id == 3)
+
+        // 4. Hacer clic en receta
+        rule.onNodeWithTag("cardReceta_2").performClick()
+        rule.waitForIdle()
+        assert(recipeClickId == 2)
+    }
+
+    @Test
+    fun homeScreen_sinCategorias() {
+        rule.setContent {
+            HomeScreenTestable(
+                categorias = emptyList(),
+                recetas = listOf(receta1)
+            )
+        }
+
+        // No debería mostrar tabs
+        rule.onNodeWithTag("tabRowCategorias").assertDoesNotExist()
+
+        // Debería mostrar recetas directamente
+        rule.onNodeWithTag("gridRecetas").assertIsDisplayed()
+    }
+
+    @Test
+    fun homeScreen_sinSubcategorias() {
+        rule.setContent {
+            HomeScreenTestable(
+                categorias = listOf(categoria1),
+                subcategorias = emptyList(),
+                recetas = listOf(receta1)
+            )
+        }
+
+        // No debería mostrar row de subcategorías
+        rule.onNodeWithTag("rowSubcategorias").assertDoesNotExist()
+
+        // Debería mostrar recetas
+        rule.onNodeWithTag("gridRecetas").assertIsDisplayed()
+    }
+
+    @Test
+    fun homeScreen_busquedaVaciaMuestraTodas() {
+        rule.setContent {
+            HomeScreenTestable(
+                recetas = listOf(receta1, receta2)
+            )
+        }
+
+        // Con búsqueda vacía, debería mostrar todas las recetas
+        rule.onNodeWithTag("cardReceta_1").assertIsDisplayed()
+        rule.onNodeWithTag("cardReceta_2").assertIsDisplayed()
+    }
+
+    @Test
+    fun homeScreen_subcategoriasCambianConCategoria() {
+        rule.setContent {
+            HomeScreenTestable(
+                categorias = listOf(categoria1, categoria2),
+                subcategorias = listOf(subcategoria1, subcategoria2, subcategoria3)
+            )
+        }
+
+        // Inicialmente seleccionada categoría 1
+        rule.onNodeWithTag("chipSubcategoria_1").assertIsDisplayed()
+        rule.onNodeWithTag("chipSubcategoria_2").assertIsDisplayed()
+        rule.onNodeWithTag("chipSubcategoria_3").assertDoesNotExist()
+
+        // Cambiar a categoría 2
+        rule.onNodeWithTag("tabCategoria_2").performClick()
+        rule.waitForIdle()
+
+        // Ahora debería mostrar solo subcategoría 3
+        rule.onNodeWithTag("chipSubcategoria_1").assertDoesNotExist()
+        rule.onNodeWithTag("chipSubcategoria_2").assertDoesNotExist()
+        rule.onNodeWithTag("chipSubcategoria_3").assertIsDisplayed()
     }
 }

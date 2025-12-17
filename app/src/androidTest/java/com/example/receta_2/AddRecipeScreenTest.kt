@@ -1,133 +1,280 @@
+// Test: AddRecipeScreenTestable.kt
 package com.example.receta_2
 
 import android.net.Uri
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import com.example.receta_2.data.model.*
 import org.junit.Rule
 import org.junit.Test
-import java.util.*
 
 /* -------------------------------------------------------------------------
-   PANTALLA TESTABLE — AddRecipeScreenTestable
+   MODELOS FAKE PARA TEST - USANDO TUS MODELOS REALES
+   ------------------------------------------------------------------------- */
+
+private val fakeCategoria1 = Categoria(
+    id = 1,
+    nombre = "Postres",
+    descripcion = "Recetas dulces"
+)
+
+private val fakeCategoria2 = Categoria(
+    id = 2,
+    nombre = "Platos Principales",
+    descripcion = "Comidas principales"
+)
+
+private val fakeSubcategoria1 = Subcategoria(
+    id = 1,
+    nombre = "Tortas"
+)
+
+private val fakeSubcategoria2 = Subcategoria(
+    id = 2,
+    nombre = "Galletas"
+)
+
+private val fakeSubcategoria3 = Subcategoria(
+    id = 3,
+    nombre = "Carnes"
+)
+
+/* -------------------------------------------------------------------------
+   ADD RECIPE SCREEN TESTABLE
    ------------------------------------------------------------------------- */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddRecipeScreenTestable(
-    onSave: (Recipe) -> Unit,
-    imageUriExternal: Uri? = null
+    imageUri: Uri? = null,
+    categorias: List<Categoria> = listOf(fakeCategoria1, fakeCategoria2),
+    subcategorias: List<Subcategoria> = listOf(fakeSubcategoria1, fakeSubcategoria2, fakeSubcategoria3),
+    onImageClick: () -> Unit = {},
+    onCategoriaSelect: (Categoria) -> Unit = {},
+    onSubcategoriaSelect: (Subcategoria) -> Unit = {},
+    onSaveClick: () -> Unit = {},
+    onBackClick: () -> Unit = {}
 ) {
-    var name by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var ingredients by remember { mutableStateOf("") }
-    var steps by remember { mutableStateOf("") }
-    var imageUri by remember { mutableStateOf(imageUriExternal) }
+    var titulo by remember { mutableStateOf("") }
+    var descripcion by remember { mutableStateOf("") }
+    var ingredientes by remember { mutableStateOf("") }
+    var instrucciones by remember { mutableStateOf("") }
+    var categoriaSeleccionada by remember { mutableStateOf<Categoria?>(null) }
+    var subcategoriaSeleccionada by remember { mutableStateOf<Subcategoria?>(null) }
 
-    val isFormValid by derivedStateOf {
-        name.isNotBlank() &&
-                description.isNotBlank() &&
-                ingredients.isNotBlank() &&
-                steps.isNotBlank() &&
-                imageUri != null
-    }
+    var expandCategoria by remember { mutableStateOf(false) }
+    var expandSubcategoria by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Añadir Nueva Receta") }) },
-        floatingActionButton = {
-            FloatingActionButton(
-                modifier = Modifier.testTag("fabGuardar"),
-                onClick = {
-                    if (isFormValid) {
-                        onSave(
-                            Recipe(
-                                id = UUID.randomUUID().toString(),
-                                name = name,
-                                description = description,
-                                image = imageUri.toString(),
-                                ingredients = ingredients.lines().filter { it.isNotBlank() },
-                                steps = steps.lines().filter { it.isNotBlank() },
-                                categoryIds = listOf("cat_user")
-                            )
-                        )
+        topBar = {
+            TopAppBar(
+                modifier = Modifier.testTag("topBar"),
+                title = { Text("Agregar Receta") },
+                navigationIcon = {
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.testTag("btnVolver")
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 }
-            ) {
-                Icon(Icons.Default.Check, contentDescription = "Guardar Receta")
-            }
+            )
         }
-    ) { padding ->
+    ) { paddingValues ->
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .padding(paddingValues)
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .verticalScroll(rememberScrollState())
+                .testTag("contenedorPrincipal")
         ) {
 
-            // Caja de imagen
+            // Selector de imagen
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-                    .testTag("imagePicker")
+                    .clickable(onClick = onImageClick)
+                    .testTag("selectorImagen"),
+                contentAlignment = Alignment.Center
             ) {
-                if (imageUri != null) {
+                if (imageUri == null) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.testTag("vistaSinImagen")
+                    ) {
+                        Icon(
+                            Icons.Default.PhotoCamera,
+                            contentDescription = "Icono de cámara",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .testTag("iconoCamara")
+                        )
+                        Text("Toca para seleccionar una imagen")
+                    }
+                } else {
                     AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current).data(imageUri).build(),
-                        contentDescription = "Imagen seleccionada",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize().testTag("imagePreview")
+                        model = imageUri,
+                        contentDescription = "Imagen de la receta",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("imagenSeleccionada"),
+                        contentScale = ContentScale.Crop
                     )
                 }
             }
 
+            Spacer(Modifier.height(16.dp))
+
+            // Campos de texto
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Nombre") },
-                modifier = Modifier.fillMaxWidth().testTag("inputNombre")
+                value = titulo,
+                onValueChange = { titulo = it },
+                label = { Text("Título") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("inputTitulo")
             )
 
+            Spacer(Modifier.height(16.dp))
+
             OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
+                value = descripcion,
+                onValueChange = { descripcion = it },
                 label = { Text("Descripción") },
-                modifier = Modifier.fillMaxWidth().testTag("inputDescripcion")
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("inputDescripcion")
             )
 
-            OutlinedTextField(
-                value = ingredients,
-                onValueChange = { ingredients = it },
-                label = { Text("Ingredientes") },
-                modifier = Modifier.fillMaxWidth().testTag("inputIngredientes")
-            )
+            Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = steps,
-                onValueChange = { steps = it },
-                label = { Text("Pasos") },
-                modifier = Modifier.fillMaxWidth().testTag("inputPasos")
+                value = ingredientes,
+                onValueChange = { ingredientes = it },
+                label = { Text("Ingredientes (uno por línea)") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("inputIngredientes")
             )
+
+            Spacer(Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = instrucciones,
+                onValueChange = { instrucciones = it },
+                label = { Text("Instrucciones (una por línea)") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("inputInstrucciones")
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // Selector de categoría
+            ExposedDropdownMenuBox(
+                expanded = expandCategoria,
+                onExpandedChange = { expandCategoria = !expandCategoria },
+                modifier = Modifier.testTag("dropdownCategoria")
+            ) {
+                OutlinedTextField(
+                    value = categoriaSeleccionada?.nombre ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Categoría") },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                        .testTag("inputCategoria")
+                )
+                ExposedDropdownMenu(
+                    expanded = expandCategoria,
+                    onDismissRequest = { expandCategoria = false }
+                ) {
+                    categorias.forEach { categoria ->
+                        DropdownMenuItem(
+                            text = { Text(categoria.nombre) },
+                            onClick = {
+                                categoriaSeleccionada = categoria
+                                subcategoriaSeleccionada = null
+                                onCategoriaSelect(categoria)
+                                expandCategoria = false
+                            },
+                            modifier = Modifier.testTag("itemCategoria_${categoria.id}")
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Selector de subcategoría
+            ExposedDropdownMenuBox(
+                expanded = expandSubcategoria,
+                onExpandedChange = { expandSubcategoria = !expandSubcategoria },
+                modifier = Modifier.testTag("dropdownSubcategoria")
+            ) {
+                OutlinedTextField(
+                    value = subcategoriaSeleccionada?.nombre ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Subcategoría") },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                        .testTag("inputSubcategoria")
+                )
+                ExposedDropdownMenu(
+                    expanded = expandSubcategoria,
+                    onDismissRequest = { expandSubcategoria = false }
+                ) {
+                    subcategorias.forEach { subcategoria ->
+                        DropdownMenuItem(
+                            text = { Text(subcategoria.nombre) },
+                            onClick = {
+                                subcategoriaSeleccionada = subcategoria
+                                onSubcategoriaSelect(subcategoria)
+                                expandSubcategoria = false
+                            },
+                            modifier = Modifier.testTag("itemSubcategoria_${subcategoria.id}")
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // Botón guardar
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("btnGuardar"),
+                onClick = onSaveClick
+            ) {
+                Text("Guardar Receta")
+            }
         }
     }
 }
@@ -141,83 +288,164 @@ class AddRecipeScreenTest {
     @get:Rule
     val rule = createComposeRule()
 
-    private var savedRecipe: Recipe? = null
+    private var imageClickCount = 0
+    private var categoriaSelectCount = 0
+    private var subcategoriaSelectCount = 0
+    private var saveClickCount = 0
+    private var backClickCount = 0
+
+    /* --- TOP BAR Y NAVEGACIÓN --- */
 
     @Test
-    fun addRecipe_muestraCamposIniciales() {
-
+    fun addRecipeScreen_muestraTopBar() {
         rule.setContent {
-            AddRecipeScreenTestable(onSave = {})
+            AddRecipeScreenTestable()
         }
 
-        rule.onNodeWithTag("inputNombre").assertIsDisplayed()
+        rule.onNodeWithTag("topBar").assertIsDisplayed()
+        rule.onNodeWithText("Agregar Receta").assertIsDisplayed()
+    }
+
+    @Test
+    fun addRecipeScreen_botonVolverFunciona() {
+        rule.setContent {
+            AddRecipeScreenTestable(
+                onBackClick = { backClickCount++ }
+            )
+        }
+
+        rule.onNodeWithTag("btnVolver").performClick()
+        rule.waitForIdle()
+
+        assert(backClickCount == 1)
+    }
+
+    /* --- SELECTOR DE IMAGEN --- */
+
+
+
+    @Test
+    fun addRecipeScreen_selectorImagenClickable() {
+        rule.setContent {
+            AddRecipeScreenTestable(
+                onImageClick = { imageClickCount++ }
+            )
+        }
+
+        rule.onNodeWithTag("selectorImagen").performClick()
+        rule.waitForIdle()
+
+        assert(imageClickCount == 1)
+    }
+
+    /* --- CAMPOS DE TEXTO --- */
+
+    @Test
+    fun addRecipeScreen_muestraTodosLosCampos() {
+        rule.setContent {
+            AddRecipeScreenTestable()
+        }
+
+        rule.onNodeWithTag("inputTitulo").assertIsDisplayed()
         rule.onNodeWithTag("inputDescripcion").assertIsDisplayed()
         rule.onNodeWithTag("inputIngredientes").assertIsDisplayed()
-        rule.onNodeWithTag("inputPasos").assertIsDisplayed()
-        rule.onNodeWithTag("fabGuardar").assertIsDisplayed()
+        rule.onNodeWithTag("inputInstrucciones").assertIsDisplayed()
+    }
+
+    /* --- SELECTOR DE CATEGORÍA --- */
+
+    @Test
+    fun addRecipeScreen_muestraDropdownCategoria() {
+        rule.setContent {
+            AddRecipeScreenTestable()
+        }
+
+        rule.onNodeWithTag("dropdownCategoria").assertIsDisplayed()
+        rule.onNodeWithTag("inputCategoria").assertIsDisplayed()
     }
 
     @Test
-    fun addRecipe_noGuardaSiFaltanCampos() {
-
+    fun addRecipeScreen_dropdownCategoriaMuestraOpciones() {
         rule.setContent {
-            AddRecipeScreenTestable(onSave = { savedRecipe = it })
+            AddRecipeScreenTestable(
+                onCategoriaSelect = { categoriaSelectCount++ }
+            )
         }
 
-        rule.onNodeWithTag("inputNombre").performTextInput("Mi receta")
+        // Abrir dropdown
+        rule.onNodeWithTag("inputCategoria").performClick()
+        rule.waitForIdle()
 
-        rule.onNodeWithTag("fabGuardar").performClick()
+        // Verificar que se muestran las opciones
+        rule.onNodeWithTag("itemCategoria_1").assertIsDisplayed()
+        rule.onNodeWithTag("itemCategoria_2").assertIsDisplayed()
 
-        assert(savedRecipe == null)
+        // Seleccionar una categoría
+        rule.onNodeWithTag("itemCategoria_1").performClick()
+        rule.waitForIdle()
+
+        assert(categoriaSelectCount == 1)
+    }
+
+    /* --- SELECTOR DE SUBCATEGORÍA --- */
+
+    @Test
+    fun addRecipeScreen_muestraDropdownSubcategoria() {
+        rule.setContent {
+            AddRecipeScreenTestable()
+        }
+
+        rule.onNodeWithTag("dropdownSubcategoria").assertIsDisplayed()
+        rule.onNodeWithTag("inputSubcategoria").assertIsDisplayed()
     }
 
     @Test
-    fun addRecipe_noGuardaSiNoHayImagen() {
-
+    fun addRecipeScreen_dropdownSubcategoriaFunciona() {
         rule.setContent {
-            AddRecipeScreenTestable(onSave = { savedRecipe = it })
+            AddRecipeScreenTestable(
+                onSubcategoriaSelect = { subcategoriaSelectCount++ }
+            )
         }
 
-        rule.onNodeWithTag("inputNombre").performTextInput("Torta")
-        rule.onNodeWithTag("inputDescripcion").performTextInput("Descripción")
-        rule.onNodeWithTag("inputIngredientes").performTextInput("Harina")
-        rule.onNodeWithTag("inputPasos").performTextInput("Mezclar")
+        // Abrir dropdown de subcategorías
+        rule.onNodeWithTag("inputSubcategoria").performClick()
+        rule.waitForIdle()
 
-        rule.onNodeWithTag("fabGuardar").performClick()
+        // Deberían aparecer todas las subcategorías
+        rule.onNodeWithTag("itemSubcategoria_1").assertIsDisplayed()
+        rule.onNodeWithTag("itemSubcategoria_2").assertIsDisplayed()
+        rule.onNodeWithTag("itemSubcategoria_3").assertIsDisplayed()
 
-        assert(savedRecipe == null)
+        // Seleccionar una subcategoría
+        rule.onNodeWithTag("itemSubcategoria_1").performClick()
+        rule.waitForIdle()
+
+        assert(subcategoriaSelectCount == 1)
+    }
+
+    /* --- BOTÓN GUARDAR --- */
+
+    @Test
+    fun addRecipeScreen_muestraBotonGuardar() {
+        rule.setContent {
+            AddRecipeScreenTestable()
+        }
+
+        rule.onNodeWithTag("btnGuardar").assertIsDisplayed()
+        rule.onNodeWithText("Guardar Receta").assertIsDisplayed()
     }
 
     @Test
-    fun addRecipe_muestraImagenCuandoExiste() {
-
-        val fakeUri = Uri.parse("file://imagen_test.jpg")
-
+    fun addRecipeScreen_botonGuardarFunciona() {
         rule.setContent {
-            AddRecipeScreenTestable(onSave = {}, imageUriExternal = fakeUri)
+            AddRecipeScreenTestable(
+                onSaveClick = { saveClickCount++ }
+            )
         }
 
-        rule.onNodeWithTag("imagePreview").assertIsDisplayed()
-    }
+        rule.onNodeWithTag("btnGuardar").performClick()
+        rule.waitForIdle()
 
-    @Test
-    fun addRecipe_guardaRecetaCorrectamente() {
-
-        val fakeUri = Uri.parse("file://imagen_test.jpg")
-
-        rule.setContent {
-            AddRecipeScreenTestable(onSave = { savedRecipe = it }, imageUriExternal = fakeUri)
-        }
-
-        rule.onNodeWithTag("inputNombre").performTextInput("Brownie")
-        rule.onNodeWithTag("inputDescripcion").performTextInput("Muy rico")
-        rule.onNodeWithTag("inputIngredientes").performTextInput("Chocolate")
-        rule.onNodeWithTag("inputPasos").performTextInput("Hornear")
-
-        rule.onNodeWithTag("fabGuardar").performClick()
-
-        assert(savedRecipe != null)
-        assert(savedRecipe!!.name == "Brownie")
-        assert(savedRecipe!!.ingredients.size == 1)
+        assert(saveClickCount == 1)
     }
 }

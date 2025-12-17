@@ -1,10 +1,15 @@
-package com.example.receta_2
+// Test: FavoritesScreenTest.kt
+package com.example.receta_2.ui.screens
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -12,24 +17,37 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.example.receta_2.data.model.*
 import org.junit.Rule
 import org.junit.Test
 
 /* -------------------------------------------------------------------------
-   FAVORITES SCREEN TESTABLE
+   FAVORITES SCREEN TESTABLE - USANDO TU MODELO REAL Receta
    ------------------------------------------------------------------------- */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoritesScreenTestable(
-    recipes: List<Recipe>,
+    recipes: List<Receta>,  // Usando Receta, no Recipe
     isLoggedIn: Boolean,
-    onToggleFavorite: (String) -> Unit = {},
-    onDetailClick: (String) -> Unit = {}
+    onToggleFavorite: (Int) -> Unit = {},  // Int, no String
+    onDetailClick: (Int) -> Unit = {},     // Int, no String
+    onBackClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Mis Favoritos") })
+            TopAppBar(
+                title = { Text("Mis Favoritos") },
+                navigationIcon = {
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.testTag("btnVolver")
+                    ) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                modifier = Modifier.testTag("topBar")
+            )
         }
     ) { paddingValues ->
 
@@ -48,31 +66,39 @@ fun FavoritesScreenTestable(
                     .testTag("listaFavoritos"),
                 contentPadding = PaddingValues(16.dp)
             ) {
-                items(recipes, key = { it.id }) { recipe ->
+                items(recipes, key = { it.id ?: 0 }) { recipe ->
 
-                    // Pequeña tarjeta simplificada para testear
+                    // Tarjeta simplificada usando tu modelo Receta
                     Card(
                         modifier = Modifier
                             .testTag("recipe_${recipe.id}")
                             .padding(vertical = 6.dp)
                     ) {
                         Text(
-                            text = recipe.name,
-                            modifier = Modifier.testTag("recipeName_${recipe.id}")
+                            text = recipe.titulo,  // Usando titulo, no name
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .testTag("recipeName_${recipe.id}")
                         )
 
-                        TextButton(
-                            modifier = Modifier.testTag("toggleFav_${recipe.id}"),
-                            onClick = { onToggleFavorite(recipe.id) }
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
-                            Text("Fav")
-                        }
+                            TextButton(
+                                modifier = Modifier.testTag("toggleFav_${recipe.id}"),
+                                onClick = { onToggleFavorite(recipe.id ?: 0) }
+                            ) {
+                                Text("Quitar Favorito")
+                            }
 
-                        TextButton(
-                            modifier = Modifier.testTag("details_${recipe.id}"),
-                            onClick = { onDetailClick(recipe.id) }
-                        ) {
-                            Text("Detalles")
+                            Spacer(Modifier.width(8.dp))
+
+                            TextButton(
+                                modifier = Modifier.testTag("details_${recipe.id}"),
+                                onClick = { onDetailClick(recipe.id ?: 0) }
+                            ) {
+                                Text("Detalles")
+                            }
                         }
                     }
 
@@ -92,32 +118,62 @@ class FavoritesScreenTest {
     @get:Rule
     val rule = createComposeRule()
 
-    private val recipe1 = Recipe(
-        id = "1",
-        name = "Pizza",
-        description = "",
-        image = "",
-        ingredients = emptyList(),
-        steps = emptyList(),
-        categoryIds = emptyList()
+    // Crear recetas usando TU modelo real Receta
+    private val receta1 = Receta(
+        id = 1,
+        titulo = "Pizza Casera",
+        descripcion = "Deliciosa pizza casera con ingredientes frescos",
+        ingredientes = "Harina\nTomate\nQueso\nJamón",
+        instrucciones = "1. Preparar la masa\n2. Agregar ingredientes\n3. Hornear",
+        usuario = IdWrapper(1),
+        categoria = IdWrapper(1),
+        subcategoria = IdWrapper(1)
     )
 
-    private val recipe2 = Recipe(
-        id = "2",
-        name = "Brownie",
-        description = "",
-        image = "",
-        ingredients = emptyList(),
-        steps = emptyList(),
-        categoryIds = emptyList()
+    private val receta2 = Receta(
+        id = 2,
+        titulo = "Brownie de Chocolate",
+        descripcion = "Brownie húmedo y delicioso",
+        ingredientes = "Chocolate\nHarina\nHuevos\nAzúcar",
+        instrucciones = "1. Derretir chocolate\n2. Mezclar ingredientes\n3. Hornear",
+        usuario = IdWrapper(1),
+        categoria = IdWrapper(2),
+        subcategoria = IdWrapper(3)
     )
 
-    private var toggleCalledWith: String? = null
-    private var detailCalledWith: String? = null
+    private var toggleCalledWith: Int? = null
+    private var detailCalledWith: Int? = null
+    private var backClickCount = 0
+
+    @Test
+    fun favoritesScreen_muestraTopBar() {
+        rule.setContent {
+            FavoritesScreenTestable(
+                recipes = emptyList(),
+                isLoggedIn = true
+            )
+        }
+
+        rule.onNodeWithTag("topBar").assertIsDisplayed()
+        rule.onNodeWithText("Mis Favoritos").assertIsDisplayed()
+    }
+
+    @Test
+    fun favoritesScreen_botonVolverFunciona() {
+        rule.setContent {
+            FavoritesScreenTestable(
+                recipes = emptyList(),
+                isLoggedIn = true,
+                onBackClick = { backClickCount++ }
+            )
+        }
+
+        rule.onNodeWithTag("btnVolver").performClick()
+        assert(backClickCount == 1)
+    }
 
     @Test
     fun favoritesScreen_muestraMensajeCuandoVacio() {
-
         rule.setContent {
             FavoritesScreenTestable(
                 recipes = emptyList(),
@@ -131,11 +187,10 @@ class FavoritesScreenTest {
     }
 
     @Test
-    fun favoritesScreen_muestraLista() {
-
+    fun favoritesScreen_muestraListaCuandoHayRecetas() {
         rule.setContent {
             FavoritesScreenTestable(
-                recipes = listOf(recipe1, recipe2),
+                recipes = listOf(receta1, receta2),
                 isLoggedIn = true
             )
         }
@@ -146,48 +201,56 @@ class FavoritesScreenTest {
     }
 
     @Test
-    fun favoritesScreen_muestraNombreRecetas() {
-
+    fun favoritesScreen_muestraTituloRecetas() {
         rule.setContent {
             FavoritesScreenTestable(
-                recipes = listOf(recipe1, recipe2),
+                recipes = listOf(receta1, receta2),
                 isLoggedIn = true
             )
         }
 
-        rule.onNodeWithTag("recipeName_1").assertTextContains("Pizza")
-        rule.onNodeWithTag("recipeName_2").assertTextContains("Brownie")
+        rule.onNodeWithTag("recipeName_1").assertTextContains("Pizza Casera")
+        rule.onNodeWithTag("recipeName_2").assertTextContains("Brownie de Chocolate")
     }
 
     @Test
-    fun favoritesScreen_toggleFavorite_funciona() {
-
+    fun favoritesScreen_toggleFavoriteFunciona() {
         rule.setContent {
             FavoritesScreenTestable(
-                recipes = listOf(recipe1),
+                recipes = listOf(receta1),
                 isLoggedIn = true,
                 onToggleFavorite = { toggleCalledWith = it }
             )
         }
 
         rule.onNodeWithTag("toggleFav_1").performClick()
-
-        assert(toggleCalledWith == "1")
+        assert(toggleCalledWith == 1)
     }
 
     @Test
-    fun favoritesScreen_onDetailClick_funciona() {
-
+    fun favoritesScreen_detailClickFunciona() {
         rule.setContent {
             FavoritesScreenTestable(
-                recipes = listOf(recipe1),
+                recipes = listOf(receta1),
                 isLoggedIn = true,
                 onDetailClick = { detailCalledWith = it }
             )
         }
 
         rule.onNodeWithTag("details_1").performClick()
+        assert(detailCalledWith == 1)
+    }
 
-        assert(detailCalledWith == "1")
+    @Test
+    fun favoritesScreen_muestraBotonesCorrectos() {
+        rule.setContent {
+            FavoritesScreenTestable(
+                recipes = listOf(receta1),
+                isLoggedIn = true
+            )
+        }
+
+        rule.onNodeWithTag("toggleFav_1").assertTextContains("Quitar Favorito")
+        rule.onNodeWithTag("details_1").assertTextContains("Detalles")
     }
 }

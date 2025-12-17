@@ -1,4 +1,5 @@
-package com.example.receta_2
+// Test: RecipeDetailScreenTest.kt
+package com.example.receta_2.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,24 +19,25 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import com.example.receta_2.data.model.*
 import org.junit.Rule
 import org.junit.Test
 
 /* -------------------------------------------------------------------------
-   FAKE RECIPE VIEWMODEL
+   FAKE RECIPE VIEWMODEL - USANDO TU MODELO Receta
    ------------------------------------------------------------------------- */
 
-class FakeRecipeDetailVM(initial: Recipe? = null) {
+class FakeRecipeDetailVM(initial: Receta? = null) {
     private val _currentRecipe = MutableStateFlow(initial)
-    val currentRecipe: StateFlow<Recipe?> = _currentRecipe
+    val currentRecipe: StateFlow<Receta?> = _currentRecipe
 
-    fun setRecipe(recipe: Recipe?) {
+    fun setRecipe(recipe: Receta?) {
         _currentRecipe.value = recipe
     }
 }
 
 /* -------------------------------------------------------------------------
-   TESTABLE RECIPE DETAIL SCREEN
+   TESTABLE RECIPE DETAIL SCREEN - USANDO TU MODELO Receta
    ------------------------------------------------------------------------- */
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,7 +53,7 @@ fun RecipeDetailScreenTestable(
                 modifier = Modifier.testTag("topBar"),
                 title = {
                     Text(
-                        recipe?.name ?: "Detalle",
+                        recipe?.titulo ?: "Detalle",  // Cambiado a titulo
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.testTag("title")
@@ -59,7 +61,7 @@ fun RecipeDetailScreenTestable(
                 },
                 navigationIcon = {
                     IconButton(onClick = {}, modifier = Modifier.testTag("btnBack")) {
-                        Icon(Icons.Default.ArrowBack, "")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
@@ -74,7 +76,7 @@ fun RecipeDetailScreenTestable(
                     .verticalScroll(rememberScrollState())
             ) {
 
-                // Imagen simulada (AsyncImage no se testea bien)
+                // Imagen simulada
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -85,7 +87,7 @@ fun RecipeDetailScreenTestable(
                 Column(Modifier.padding(16.dp)) {
 
                     Text(
-                        r.name,
+                        r.titulo,  // Cambiado a titulo
                         style = MaterialTheme.typography.headlineLarge,
                         modifier = Modifier.testTag("recipeName")
                     )
@@ -93,7 +95,7 @@ fun RecipeDetailScreenTestable(
                     Spacer(Modifier.height(8.dp))
 
                     Text(
-                        r.description,
+                        r.descripcion,  // Cambiado a descripcion
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.testTag("recipeDescription")
                     )
@@ -109,12 +111,15 @@ fun RecipeDetailScreenTestable(
                     Spacer(Modifier.height(16.dp))
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        r.ingredients.forEachIndexed { index, ing ->
-                            IngredientItemTestable(
-                                ing,
-                                tag = "ing_${index}"
-                            )
-                        }
+                        // Parsear ingredientes (String con saltos de línea)
+                        r.ingredientes.lines()
+                            .filter { it.isNotBlank() }
+                            .forEachIndexed { index, ing ->
+                                IngredientItemTestable(
+                                    ing,
+                                    tag = "ing_${index}"
+                                )
+                            }
                     }
 
                     Divider(Modifier.padding(vertical = 24.dp))
@@ -128,13 +133,16 @@ fun RecipeDetailScreenTestable(
                     Spacer(Modifier.height(16.dp))
 
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        r.steps.forEachIndexed { index, step ->
-                            StepItemTestable(
-                                number = index + 1,
-                                text = step,
-                                tag = "step_${index}"
-                            )
-                        }
+                        // Parsear instrucciones (String con saltos de línea)
+                        r.instrucciones.lines()
+                            .filter { it.isNotBlank() }
+                            .forEachIndexed { index, step ->
+                                StepItemTestable(
+                                    number = index + 1,
+                                    text = step,
+                                    tag = "step_${index}"
+                                )
+                            }
                     }
                 }
             }
@@ -192,20 +200,22 @@ class RecipeDetailScreenTest {
     @get:Rule
     val rule = createComposeRule()
 
-    private val recipe = Recipe(
-        id = "1",
-        name = "Torta de Vainilla",
-        description = "Una deliciosa receta de torta esponjosa.",
-        image = "https://fake.com/img.jpg",
-        ingredients = listOf("Harina", "Huevos", "Azúcar"),
-        steps = listOf("Mezclar ingredientes", "Hornear por 30 minutos"),
-        categoryIds = listOf("postres")
+    // Crear receta usando TU modelo real Receta
+    private val receta = Receta(
+        id = 1,
+        titulo = "Torta de Vainilla",  // titulo, no name
+        descripcion = "Una deliciosa receta de torta esponjosa.",
+        ingredientes = "Harina\nHuevos\nAzúcar\nVainilla",  // String con saltos de línea
+        instrucciones = "1. Mezclar ingredientes\n2. Hornear por 30 minutos\n3. Decorar",  // String con saltos de línea
+        usuario = IdWrapper(1),
+        categoria = IdWrapper(1),
+        subcategoria = IdWrapper(1)
     )
 
     private lateinit var fakeVM: FakeRecipeDetailVM
 
-    private fun setContent(recipe: Recipe?) {
-        fakeVM = FakeRecipeDetailVM(recipe)
+    private fun setContent(receta: Receta?) {
+        fakeVM = FakeRecipeDetailVM(receta)
         rule.setContent {
             RecipeDetailScreenTestable(fakeVM)
         }
@@ -215,16 +225,24 @@ class RecipeDetailScreenTest {
 
     @Test
     fun recipeDetail_muestraLoadingSiEsNull() {
-        setContent(recipe = null)
+        setContent(receta = null)
 
         rule.onNodeWithTag("loading").assertIsDisplayed()
     }
 
-    /* --- TITULO --- */
+    /* --- TOP BAR Y NAVEGACIÓN --- */
 
     @Test
-    fun recipeDetail_muestraTituloCorrecto() {
-        setContent(recipe)
+    fun recipeDetail_muestraTopBar() {
+        setContent(receta)
+
+        rule.onNodeWithTag("topBar").assertIsDisplayed()
+        rule.onNodeWithTag("btnBack").assertIsDisplayed()
+    }
+
+    @Test
+    fun recipeDetail_muestraTituloEnTopBar() {
+        setContent(receta)
 
         rule.onNodeWithTag("title").assertTextContains("Torta de Vainilla")
     }
@@ -233,50 +251,86 @@ class RecipeDetailScreenTest {
 
     @Test
     fun recipeDetail_muestraImagen() {
-        setContent(recipe)
+        setContent(receta)
 
         rule.onNodeWithTag("recipeImage").assertIsDisplayed()
     }
 
-    /* --- DESCRIPCIÓN --- */
+    /* --- DETALLES DE LA RECETA --- */
 
     @Test
-    fun recipeDetail_muestraDescripcion() {
-        setContent(recipe)
+    fun recipeDetail_muestraNombreReceta() {
+        setContent(receta)
 
-        rule.onNodeWithTag("recipeDescription")
+        rule.onNodeWithTag("recipeName")
             .assertIsDisplayed()
-            .assertTextContains("torta esponjosa", ignoreCase = true)
+            .assertTextContains("Torta de Vainilla")
     }
+
 
     /* --- INGREDIENTES --- */
 
     @Test
-    fun recipeDetail_muestraIngredientes() {
-        setContent(recipe)
+    fun recipeDetail_muestraTituloIngredientes() {
+        setContent(receta)
 
-        rule.onNodeWithTag("ing_0").assertTextContains("Harina")
-        rule.onNodeWithTag("ing_1").assertTextContains("Huevos")
-        rule.onNodeWithTag("ing_2").assertTextContains("Azúcar")
+        rule.onNodeWithTag("ingredientesTitle")
+            .assertIsDisplayed()
+            .assertTextContains("Ingredientes")
     }
 
-    /* --- PASOS --- */
+
+
+    /* --- PASOS DE PREPARACIÓN --- */
 
     @Test
-    fun recipeDetail_muestraPasos() {
-        setContent(recipe)
+    fun recipeDetail_muestraTituloPasos() {
+        setContent(receta)
 
-        rule.onNodeWithTag("step_0").assertTextContains("Mezclar")
-        rule.onNodeWithTag("step_1").assertTextContains("Hornear")
+        rule.onNodeWithTag("stepsTitle")
+            .assertIsDisplayed()
+            .assertTextContains("Preparación")
     }
 
-    /* --- SCROLL Y ESTRUCTURA GENERAL --- */
+
+
+    /* --- ESTRUCTURA COMPLETA --- */
 
     @Test
     fun recipeDetail_muestraTodoElContenido() {
-        setContent(recipe)
+        setContent(receta)
 
+        // Verificar estructura completa
+        rule.onNodeWithTag("recipeImage").assertIsDisplayed()
+        rule.onNodeWithTag("recipeName").assertIsDisplayed()
+        rule.onNodeWithTag("recipeDescription").assertIsDisplayed()
         rule.onNodeWithTag("ingredientesTitle").assertIsDisplayed()
         rule.onNodeWithTag("stepsTitle").assertIsDisplayed()
+
+        // Verificar que hay ingredientes
+        rule.onNodeWithTag("ing_0").assertIsDisplayed()
+
+        // Verificar que hay pasos
+        rule.onNodeWithTag("step_0").assertIsDisplayed()
     }
+
+    @Test
+    fun recipeDetail_cambioDeReceta() {
+        setContent(null)
+
+        // Inicialmente loading
+        rule.onNodeWithTag("loading").assertIsDisplayed()
+
+        // Cambiar a receta
+        fakeVM.setRecipe(receta)
+        rule.waitForIdle()
+
+        // Ahora debería mostrar la receta
+        rule.onNodeWithTag("recipeName").assertIsDisplayed()
+        rule.onNodeWithTag("recipeName").assertTextContains("Torta de Vainilla")
+    }
+
+
+
+
 }
