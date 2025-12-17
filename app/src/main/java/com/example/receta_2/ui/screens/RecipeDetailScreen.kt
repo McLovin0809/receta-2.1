@@ -56,10 +56,8 @@ fun RecipeDetailScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                if (!recipe!!.imagenUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(recipe!!.imagenUrl)
                             .crossfade(true)
                             .build(),
                         contentDescription = recipe!!.titulo,
@@ -96,7 +94,7 @@ fun RecipeDetailScreen(
             }
         }
     }
-}
+
 
 @Composable
 fun IngredientItem(text: String) {

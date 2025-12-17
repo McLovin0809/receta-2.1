@@ -5,6 +5,4 @@ data class Usuario(
     val nombre: String? = null,
     val email: String,
     val password: String,
-    val telefono: String? = null,
-    val fechaRegistro: String? = null
 )

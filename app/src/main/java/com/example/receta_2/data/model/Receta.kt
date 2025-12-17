@@ -1,3 +1,4 @@
+// com/example/receta_2/data/model/Receta.kt
 package com.example.receta_2.data.model
 
 data class Receta(
@@ -6,8 +7,11 @@ data class Receta(
     val descripcion: String,
     val ingredientes: String,
     val instrucciones: String,
-    val usuario: Usuario? = null,
-    val categoria: Categoria? = null,
-    val subcategoria: Subcategoria? = null,
-    var imagenUrl: String? = null
+    val usuario: IdWrapper,
+    val categoria: IdWrapper,
+    val subcategoria: IdWrapper
+)
+
+data class IdWrapper(
+    val id: Int
 )

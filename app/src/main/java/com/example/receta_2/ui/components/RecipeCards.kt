@@ -18,12 +18,12 @@ fun RecipeItemCard(
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
     onDetailsClick: () -> Unit,
-    isLoggedIn: Boolean
+    isLoggedIn: () -> Unit
 ) {
     Card(onClick = onDetailsClick) {
         Column {
             AsyncImage(
-                model = recipe.imagenUrl ?: "",
+                model = recipe.id,
                 contentDescription = recipe.titulo,
                 modifier = Modifier.fillMaxWidth().height(160.dp),
                 contentScale = ContentScale.Crop
@@ -33,7 +33,7 @@ fun RecipeItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(recipe.titulo, style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = { if (isLoggedIn) onToggleFavorite() }) {
+                IconButton(onClick = { if (isLoggedIn() != null) onToggleFavorite() }) {
                     if (isFavorite) {
                         Icon(
                             Icons.Filled.Favorite,

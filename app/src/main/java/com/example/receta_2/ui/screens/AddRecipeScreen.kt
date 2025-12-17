@@ -6,14 +6,15 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,245 +28,235 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.example.receta_2.data.model.*
+import com.example.receta_2.viewmodel.AuthViewModel
 import com.example.receta_2.viewmodel.RecipeViewModel
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddRecipeScreen(
     navController: NavController,
     recipeViewModel: RecipeViewModel,
-    currentUser: Usuario?
+    authViewModel: AuthViewModel
 ) {
-    var name by rememberSaveable { mutableStateOf("") }
-    var description by rememberSaveable { mutableStateOf("") }
-    var ingredients by rememberSaveable { mutableStateOf("") }
-    var steps by rememberSaveable { mutableStateOf("") }
-    var imageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
-    var selectedCategory by rememberSaveable { mutableStateOf<Categoria?>(null) }
-    var selectedSubcategory by rememberSaveable { mutableStateOf<Subcategoria?>(null) }
-    var expandedCategory by remember { mutableStateOf(false) }
-    var expandedSubcategory by remember { mutableStateOf(false) }
+    var imageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imageUri = uri
+    }
+
+    val permissionToRequest = if (android.os.Build.VERSION.SDK_INT >= 33) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            imagePickerLauncher.launch("image/*")
+        }
+    }
 
     val categorias by recipeViewModel.categorias.collectAsState()
     val subcategorias by recipeViewModel.subcategorias.collectAsState()
+    val userId by authViewModel.userId.collectAsState()
 
-    var showError by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
+    var titulo by rememberSaveable { mutableStateOf("") }
+    var descripcion by rememberSaveable { mutableStateOf("") }
+    var ingredientes by rememberSaveable { mutableStateOf("") }
+    var instrucciones by rememberSaveable { mutableStateOf("") }
+
+    var categoriaSeleccionada by rememberSaveable { mutableStateOf<Categoria?>(null) }
+    var subcategoriaSeleccionada by rememberSaveable { mutableStateOf<Subcategoria?>(null) }
+
+    var expandCategoria by remember { mutableStateOf(false) }
+    var expandSubcategoria by remember { mutableStateOf(false) }
+
+    var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         recipeViewModel.cargarCategorias()
         recipeViewModel.cargarSubcategorias()
     }
 
-    val context = LocalContext.current
-    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        imageUri = uri
-    }
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) imagePickerLauncher.launch("image/*")
-    }
-
-    val permission = if (android.os.Build.VERSION.SDK_INT >= 33) {
-        Manifest.permission.READ_MEDIA_IMAGES
-    } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
-    }
-
-    val isFormValid by remember {
-        derivedStateOf {
-            name.isNotBlank() &&
-                    description.isNotBlank() &&
-                    ingredients.isNotBlank() &&
-                    steps.isNotBlank() &&
-                    imageUri != null &&
-                    selectedCategory != null &&
-                    selectedSubcategory != null
-        }
-    }
-
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Añadir Receta") },
+                title = { Text("Agregar Receta") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        // Icono corregido para usar la versión AutoMirrored que se adapta a la dirección de lectura
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    if (isFormValid) {
-                        val nuevaReceta = Receta(
-                            titulo = name,
-                            descripcion = description,
-                            ingredientes = ingredients,
-                            instrucciones = steps,
-                            usuario = currentUser?.let { Usuario(id = it.id, nombre = it.nombre, email = it.email, password = it.password) },
-                            categoria = selectedCategory?.let { Categoria(id = it.id, nombre = "") },
-                            subcategoria = selectedSubcategory?.let { Subcategoria(id = it.id, nombre = "") }
-                        )
-
-                        val imagenPart = imageUri?.let { uri ->
-                            try {
-                                val inputStream = context.contentResolver.openInputStream(uri) ?: return@let null
-                                val tempFile = File.createTempFile("upload", ".jpg", context.cacheDir)
-                                tempFile.outputStream().use { outputStream ->
-                                    inputStream.copyTo(outputStream)
-                                }
-                                val requestFile = RequestBody.create("image/*".toMediaType(), tempFile)
-                                MultipartBody.Part.createFormData("file", tempFile.name, requestFile)
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
-
-                        recipeViewModel.crear(nuevaReceta, imagenPart) { success ->
-                            if (success) {
-                                navController.navigateUp()
-                            } else {
-                                showError = true
-                            }
-                        }
-                    } else {
-                        showError = true
-                    }
-                },
-                containerColor = if (isFormValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                Icon(Icons.Default.Check, contentDescription = "Guardar")
-            }
         }
-    ) { paddingValues ->
-        if (showError) {
-            LaunchedEffect(snackbarHostState) {
-                snackbarHostState.showSnackbar("Revisa los campos o intenta nuevamente.")
-                showError = false
-            }
-        }
+    ) { padding ->
 
-        val isLoading = categorias.isEmpty() || subcategorias.isEmpty()
+        Column(
+            Modifier
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp) // Espaciado consistente
+        ) {
 
-        if (isLoading) {
+            // --- INICIO DEL COMPONENTE VISUAL PARA LA IMAGEN ---
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+                    .clickable {
+                        // Lógica para pedir permiso y abrir la galería
+                        val permissionStatus =
+                            ContextCompat.checkSelfPermission(context, permissionToRequest)
+                        if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
+                            imagePickerLauncher.launch("image/*")
+                        } else {
+                            permissionLauncher.launch(permissionToRequest)
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                if (imageUri == null) {
+                    // Vista que se muestra si no hay imagen seleccionada
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = "Icono de cámara", modifier = Modifier.size(48.dp))
+                        Text("Toca para seleccionar una imagen", style = MaterialTheme.typography.bodyLarge)
+                    }
+                } else {
+                    // Vista que muestra la imagen seleccionada usando Coil
+                    AsyncImage(
+                        model = imageUri,
+                        contentDescription = "Imagen de la receta",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop // Para que la imagen cubra todo el espacio
+                    )
+                }
             }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text("Completa los datos de tu receta", style = MaterialTheme.typography.titleMedium)
+            // --- FIN DEL COMPONENTE VISUAL PARA LA IMAGEN ---
 
-                // Selector de imagen
-                Box(
+
+            OutlinedTextField(titulo, { titulo = it }, label = { Text("Título") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(descripcion, { descripcion = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ingredientes, { ingredientes = it }, label = { Text("Ingredientes (uno por línea)") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(instrucciones, { instrucciones = it }, label = { Text("Instrucciones (una por línea)") }, modifier = Modifier.fillMaxWidth())
+
+            // ===== CATEGORIA =====
+            ExposedDropdownMenuBox(
+                expanded = expandCategoria,
+                onExpandedChange = { expandCategoria = !expandCategoria }
+            ) {
+                OutlinedTextField(
+                    value = categoriaSeleccionada?.nombre ?: "",
+                    onValueChange = {}, readOnly = true,
+                    label = { Text("Categoría") },
                     modifier = Modifier
+                        .menuAnchor()
                         .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-                        .clickable {
-                            val permissionStatus = ContextCompat.checkSelfPermission(context, permission)
-                            if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
-                                imagePickerLauncher.launch("image/*")
-                            } else {
-                                permissionLauncher.launch(permission)
-                            }
-                        },
-                    contentAlignment = Alignment.Center
+                )
+                ExposedDropdownMenu(
+                    expanded = expandCategoria,
+                    onDismissRequest = { expandCategoria = false }
                 ) {
-                    if (imageUri == null) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.PhotoCamera, contentDescription = "Seleccionar imagen", modifier = Modifier.size(48.dp))
-                            Text("Toca para seleccionar una imagen")
-                        }
-                    } else {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context).data(imageUri).crossfade(true).build(),
-                            contentDescription = "Imagen seleccionada",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                    categorias.forEach {
+                        DropdownMenuItem(
+                            text = { Text(it.nombre) },
+                            onClick = {
+                                categoriaSeleccionada = it
+                                subcategoriaSeleccionada = null
+                                expandCategoria = false
+                            }
                         )
                     }
                 }
+            }
 
-                // Campos de texto
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = ingredients, onValueChange = { ingredients = it }, label = { Text("Ingredientes") }, modifier = Modifier.fillMaxWidth().height(150.dp))
-                OutlinedTextField(value = steps, onValueChange = { steps = it }, label = { Text("Pasos") }, modifier = Modifier.fillMaxWidth().height(150.dp))
-
-                // Dropdown Categoría
-                ExposedDropdownMenuBox(expanded = expandedCategory, onExpandedChange = { expandedCategory = !expandedCategory }) {
-                    OutlinedTextField(
-                        value = selectedCategory?.nombre ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Categoría") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(expanded = expandedCategory, onDismissRequest = { expandedCategory = false }) {
-                        categorias.forEach { categoria ->
-                            DropdownMenuItem(
-                                text = { Text(categoria.nombre) },
-                                onClick = {
-                                    selectedCategory = categoria
-                                    expandedCategory = false
-                                }
-                            )
-                        }
-                    }
-                }
-                // Dropdown Subcategoría
-                ExposedDropdownMenuBox(
-                    expanded = expandedSubcategory,
-                    onExpandedChange = { expandedSubcategory = !expandedSubcategory }
+            // ===== SUBCATEGORIA =====
+            ExposedDropdownMenuBox(
+                expanded = expandSubcategoria,
+                onExpandedChange = { expandSubcategoria = !expandSubcategoria }
+            ) {
+                OutlinedTextField(
+                    value = subcategoriaSeleccionada?.nombre ?: "",
+                    onValueChange = {}, readOnly = true,
+                    label = { Text("Subcategoría") },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandSubcategoria,
+                    onDismissRequest = { expandSubcategoria = false }
                 ) {
-                    OutlinedTextField(
-                        value = selectedSubcategory?.nombre ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Subcategoría") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedSubcategory) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expandedSubcategory,
-                        onDismissRequest = { expandedSubcategory = false }
-                    ) {
-                        subcategorias.forEach { subcat ->
+                    subcategorias
+                        .filter { it.categoria?.id == categoriaSeleccionada?.id }
+                        .forEach {
                             DropdownMenuItem(
-                                text = { Text(subcat.nombre) },
+                                text = { Text(it.nombre) },
                                 onClick = {
-                                    selectedSubcategory = subcat
-                                    expandedSubcategory = false
+                                    subcategoriaSeleccionada = it
+                                    expandSubcategoria = false
                                 }
                             )
                         }
-                    }
                 }
+            }
+
+            error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
+            }
+
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    val currentUserId = userId // Obtenemos el valor actual del ID del usuario
+                    if (
+                        titulo.isBlank() ||
+                        descripcion.isBlank() ||
+                        ingredientes.isBlank() ||
+                        instrucciones.isBlank() ||
+                        categoriaSeleccionada == null ||
+                        subcategoriaSeleccionada == null ||
+                        currentUserId == null ||
+                        imageUri == null // Se añade la validación para la imagen
+                    ) {
+                        error = "Completa todos los campos, incluyendo la imagen"
+                        return@Button
+                    }
+
+                    // Se crea el objeto Receta, asumiendo que el modelo espera la URI como String
+                    val receta = Receta(
+                        titulo = titulo,
+                        descripcion = descripcion,
+                        ingredientes = ingredientes,
+                        instrucciones = instrucciones,
+                        usuario = IdWrapper(id = currentUserId),
+                        categoria = IdWrapper(categoriaSeleccionada!!.id),
+                        subcategoria = IdWrapper(subcategoriaSeleccionada!!.id),
+                        // imagen = imageUri.toString() // Descomenta esta línea cuando tu modelo `Receta` tenga el campo `imagen`
+                    )
+
+                    recipeViewModel.crearReceta(
+                        receta,
+                        onSuccess = { navController.popBackStack() },
+                        onError = { error = it }
+                    )
+                }
+            ) {
+                Text("Guardar Receta")
             }
         }
     }
 }
-

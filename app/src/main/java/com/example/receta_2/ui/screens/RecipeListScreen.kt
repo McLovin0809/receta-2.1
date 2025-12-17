@@ -66,7 +66,7 @@ fun RecipeListScreen(
                         isFavorite = favoriteRecipes.any { it.id == receta.id },
                         onToggleFavorite = { favoritesViewModel.toggleFavorite(receta) },
                         onDetailsClick = { navController.navigate("recipe_detail/${receta.id}") },
-                        isLoggedIn = isLoggedIn
+                        isLoggedIn = { if (isLoggedIn) navController.navigate("login") }
                     )
                     Spacer(modifier = Modifier.height(8.dp)) // ✅ Espaciado correcto
                 }

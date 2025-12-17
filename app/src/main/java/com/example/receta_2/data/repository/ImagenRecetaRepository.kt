@@ -1,13 +1,12 @@
+// com/example/receta_2/data/repository/ImagenRepository.kt
 package com.example.receta_2.data.repository
 
 import com.example.receta_2.data.model.ImagenReceta
 import com.example.receta_2.data.remote.ImagenRecetaApiService
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
 import retrofit2.Response
 
-class ImagenRecetaRepository(private val api: ImagenRecetaApiService) {
-    suspend fun obtenerPorReceta(id: Int): Response<ImagenReceta> = api.obtenerPorReceta(id)
-    suspend fun subirImagen(file: MultipartBody.Part, recetaId: RequestBody): Response<ImagenReceta> =
-        api.subirImagen(file, recetaId)
+class ImagenRepository(private val api: ImagenRecetaApiService) {
+    suspend fun listarImagenes(): Response<List<ImagenReceta>> = api.listarImagenes()
+    suspend fun subirImagen(imagen: ImagenReceta): Response<ImagenReceta> = api.subirImagen(imagen)
+    suspend fun eliminarImagen(id: Int): Response<Void> = api.eliminarImagen(id)
 }

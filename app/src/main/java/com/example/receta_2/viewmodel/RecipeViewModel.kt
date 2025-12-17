@@ -1,134 +1,77 @@
 package com.example.receta_2.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.receta_2.data.model.*
-import com.example.receta_2.data.repository.RecetaRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import com.example.receta_2.data.repository.*
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import okhttp3.MultipartBody
 
 class RecipeViewModel(
-    private val repository: RecetaRepository
+    private val recetaRepository: RecetaRepository,
+    private val categoriaRepository: CategoriaRepository,
+    private val subcategoriaRepository: SubcategoriaRepository
 ) : ViewModel() {
 
-    // ✅ Recetas
     private val _recetas = MutableStateFlow<List<Receta>>(emptyList())
     val recetas: StateFlow<List<Receta>> = _recetas
 
     private val _recetaDetalle = MutableStateFlow<Receta?>(null)
     val recetaDetalle: StateFlow<Receta?> = _recetaDetalle
 
-    // ✅ Categorías
     private val _categorias = MutableStateFlow<List<Categoria>>(emptyList())
     val categorias: StateFlow<List<Categoria>> = _categorias
 
-    // ✅ Subcategorías
     private val _subcategorias = MutableStateFlow<List<Subcategoria>>(emptyList())
     val subcategorias: StateFlow<List<Subcategoria>> = _subcategorias
 
-    // -------------------------------
-    // Métodos de carga
-    // -------------------------------
-    fun cargarRecetasPorCategoria(id: Int) {
-        viewModelScope.launch {
-            try {
-                val response = repository.recetasPorCategoria(id)
-                if (response.isSuccessful) {
-                    _recetas.value = response.body().orEmpty()
-                }
-            } catch (e: Exception) {
-                _recetas.value = emptyList()
-            }
+    fun cargarCategorias() = viewModelScope.launch {
+        val res = categoriaRepository.listarCategorias()
+        if (res.isSuccessful) _categorias.value = res.body().orEmpty()
+    }
+
+    fun cargarSubcategorias() = viewModelScope.launch {
+        val res = subcategoriaRepository.listarSubcategorias()
+        if (res.isSuccessful) _subcategorias.value = res.body().orEmpty()
+    }
+
+    fun cargarRecetas() = viewModelScope.launch {
+        val res = recetaRepository.listarRecetas()
+        if (res.isSuccessful) _recetas.value = res.body().orEmpty()
+    }
+
+    fun cargarRecetasPorSubcategoria(id: Int) = viewModelScope.launch {
+        val res = recetaRepository.listarRecetas()
+        if (res.isSuccessful) {
+            _recetas.value = res.body()?.filter { it.subcategoria?.id == id } ?: emptyList()
         }
     }
 
-    fun cargarDetalle(id: Int) {
-        viewModelScope.launch {
-            try {
-                val response = repository.detalle(id)
-                if (response.isSuccessful) {
-                    _recetaDetalle.value = response.body()
-                } else {
-                    _recetaDetalle.value = null
-                }
-            } catch (e: Exception) {
-                _recetaDetalle.value = null
-            }
-        }
+    fun obtenerRecetaPorId(id: String) = viewModelScope.launch {
+        val res = recetaRepository.obtenerReceta(id)
+        if (res.isSuccessful) _recetaDetalle.value = res.body()
     }
 
-    fun cargarCategorias() {
-        viewModelScope.launch {
-            try {
-                val response = repository.listarCategorias()
-                if (response.isSuccessful) {
-                    _categorias.value = response.body().orEmpty()
-                } else {
-                    Log.e("API", "Error categorías: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                Log.e("API", "Excepción categorías", e)
-            }
-        }
+    fun limpiarRecetas() {
+        _recetas.value = emptyList()
     }
 
-    fun cargarSubcategorias() {
-        viewModelScope.launch {
-            try {
-                val response = repository.listarSubcategorias()
-                if (response.isSuccessful) {
-                    _subcategorias.value = response.body().orEmpty()
-                } else {
-                    Log.e("API", "Error subcategorías: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                Log.e("API", "Excepción subcategorías", e)
-            }
-        }
-    }
-
-    // -------------------------------
-    // Crear receta con imagen
-    // -------------------------------
-    fun crear(
+    fun crearReceta(
         receta: Receta,
-        imagenPart: MultipartBody.Part?,
-        onResult: (Boolean) -> Unit
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
     ) {
         viewModelScope.launch {
             try {
-                val crearResp = repository.crearReceta(receta)
-                if (!crearResp.isSuccessful) {
-                    onResult(false)
-                    return@launch
+                val res = recetaRepository.crearReceta(receta)
+                if (res.isSuccessful) {
+                    cargarRecetas()
+                    onSuccess()
+                } else {
+                    onError("Error al guardar receta")
                 }
-
-                val recetaCreada = crearResp.body()
-                val recetaId = recetaCreada?.id
-                if (recetaId == null) {
-                    onResult(false)
-                    return@launch
-                }
-
-                // Subir imagen si existe
-                if (imagenPart != null) {
-                    val subirResp = repository.subirImagen(imagenPart, recetaId)
-                    if (subirResp.isSuccessful) {
-                        recetaCreada?.imagenUrl = subirResp.body()?.url
-                    }
-                }
-
-                // ✅ Actualizamos lista local
-                recetaCreada?.let {
-                    _recetas.value = _recetas.value + it
-                }
-
-                onResult(true)
             } catch (e: Exception) {
-                onResult(false)
+                onError("Error de conexión")
             }
         }
     }

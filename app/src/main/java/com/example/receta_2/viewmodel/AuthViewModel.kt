@@ -9,56 +9,61 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class AuthViewModel(
-    private val repository: AuthRepository = AuthRepository()
+    private val authRepository: AuthRepository
+
 ) : ViewModel() {
+
+    private val _userId = MutableStateFlow<Int?>(null)
+    val userId: StateFlow<Int?> = _userId
+    private val _user = MutableStateFlow<Usuario?>(null)
+    val user: StateFlow<Usuario?> = _user
 
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
-
-    private val _currentUser = MutableStateFlow<Usuario?>(null)
-    val currentUser: StateFlow<Usuario?> = _currentUser
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
             try {
-                val response = repository.login(email, password)
+                val response = authRepository.login(email, password)
                 if (response.isSuccessful) {
-                    _currentUser.value = response.body()
                     _isLoggedIn.value = true
                     _errorMessage.value = null
                 } else {
                     _errorMessage.value = "Credenciales incorrectas"
-                    _isLoggedIn.value = false
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Error de conexión: ${e.message}"
-                _isLoggedIn.value = false
+                _errorMessage.value = "Error de conexión"
+            }
+        }
+    }
+    fun register(usuario: Usuario, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val res = authRepository.registrar( usuario.nombre, usuario.email, usuario.password)
+                if (res.isSuccessful) {
+                    onSuccess()
+                } else {
+                    _error.value = "Error al registrar"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error de conexión"
             }
         }
     }
 
-    fun register(nombre: String, email: String, password: String, onSuccess: () -> Unit) {
-        viewModelScope.launch {
-            try {
-                val response = repository.register(nombre, email, password)
-                if (response.isSuccessful) {
-                    _currentUser.value = response.body()
-                    _errorMessage.value = null
-                    onSuccess()
-                } else {
-                    _errorMessage.value = "No se pudo registrar"
-                }
-            } catch (e: Exception) {
-                _errorMessage.value = "Error de conexión: ${e.message}"
-            }
-        }
+    fun setError(msg: String) {
+        _errorMessage.value = msg
     }
 
     fun logout() {
         _isLoggedIn.value = false
-        _currentUser.value = null
     }
 }
+
+

@@ -1,239 +1,182 @@
+// com/example/receta_2/ui/screens/HomeScreen.kt
 package com.example.receta_2.ui.screens
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.*
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
-import com.example.receta_2.data.model.CategoryGroup
-import com.example.receta_2.data.model.SearchCategory
-import com.example.receta_2.data.model.allCategories
-import com.example.receta_2.navigation.ExtraRoutes
+import com.example.receta_2.data.model.Categoria
+import com.example.receta_2.data.model.Receta
+import com.example.receta_2.data.model.Subcategoria
+import com.example.receta_2.ui.components.RecipeItemCard
 import com.example.receta_2.viewmodel.RecipeViewModel
-import kotlinx.coroutines.flow.filter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    isLoggedIn: Boolean,
-    onProfileClick: () -> Unit,
     navController: NavController,
-    onFavoritesClick: () -> Unit,
-    recipeViewModel: RecipeViewModel
+    recipeViewModel: RecipeViewModel,
+
 ) {
+    val categorias by recipeViewModel.categorias.collectAsState()
+    val subcategorias by recipeViewModel.subcategorias.collectAsState()
+    val recetas by recipeViewModel.recetas.collectAsState()
+
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedCategoriaIndex by rememberSaveable { mutableStateOf(0) }
+    var selectedSubcategoriaId by rememberSaveable { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(Unit) {
+        recipeViewModel.cargarCategorias()
+        recipeViewModel.cargarSubcategorias()
+        recipeViewModel.cargarRecetas()
+    }
+
+    var search by remember { mutableStateOf("") }
+
+    val resultados = remember(search, recetas, categorias, subcategorias) {
+        val q = search.lowercase()
+
+        recetas.filter {
+            it.titulo.lowercase().contains(q)
+        } +
+                categorias.filter {
+                    it.nombre.lowercase().contains(q)
+                } +
+                subcategorias.filter {
+                    it.nombre.lowercase().contains(q)
+                }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        OutlinedTextField(
+            value = search,
+            onValueChange = { search = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            placeholder = { Text("Buscar recetas, categorías...") }
+        )
+
+        LazyColumn {
+            items(resultados) { item ->
+                when (item) {
+                    is Receta -> RecipeItemCard(item, false, {}, {}) {
+                        navController.navigate("detail/${item.id}")
+                    }
+                    is Categoria -> Text("📂 ${item.nombre}")
+                    is Subcategoria -> Text("📁 ${item.nombre}")
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "RecetApp",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                },
+                title = { Text("Recetas") },
                 actions = {
-                    if (isLoggedIn) {
-                        IconButton(onClick = onFavoritesClick) {
-                            Icon(Icons.Default.Favorite, contentDescription = "Favoritos")
-                        }
-                        IconButton(onClick = onProfileClick) {
-                            Icon(Icons.Default.Person, contentDescription = "Perfil")
-                        }
+                    IconButton(onClick = { navController.navigate("profile") }) {
+                        Icon(Icons.Default.Person, null)
                     }
                 }
             )
         },
         floatingActionButton = {
-            if (isLoggedIn) {
-                FloatingActionButton(
-                    onClick = { navController.navigate(ExtraRoutes.ADD_RECIPE) },
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Añadir Receta")
-                }
+            FloatingActionButton(
+                onClick = { navController.navigate("add_recipe") }
+            ) {
+                Icon(Icons.Default.Add, null)
             }
         }
-    ) { paddingValues ->
+    ) { padding ->
+        LazyColumn(Modifier.padding(padding)) {
+            items(recetas) {
+                Text(it.titulo, modifier = Modifier.padding(16.dp))
+            }
+        }
         Column(
-            modifier = Modifier
-                .padding(paddingValues)
+            Modifier
                 .fillMaxSize()
+                .padding(padding)
         ) {
+
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Ej: Pastas, Airfryer, Tapas…") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Limpiar búsqueda")
-                        }
-                    }
-                },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                placeholder = { Text("Buscar recetas...") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
+                    .padding(16.dp)
             )
 
-            CategoryTabs(
-                navController = navController,
-                searchQuery = searchQuery,
-                recipeViewModel = recipeViewModel
-            )
-        }
-    }
-}
-
-@Composable
-fun CategoryTabs(
-    navController: NavController,
-    searchQuery: String,
-    recipeViewModel: RecipeViewModel
-) {
-    var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
-    val recetas by recipeViewModel.recetas.collectAsState()
-
-    val categoryGroups = listOf("Carnes", "Pastas", "Postres")
-
-    Column {
-        if (searchQuery.isBlank()) {
-            ScrollableTabRow(
-                selectedTabIndex = selectedTabIndex,
-                edgePadding = 16.dp,
-                indicator = { tabPositions ->
-                    TabRowDefaults.Indicator(
-                        Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                        height = 3.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+            if (categorias.isNotEmpty()) {
+                ScrollableTabRow(selectedTabIndex = selectedCategoriaIndex) {
+                    categorias.forEachIndexed { index, categoria ->
+                        Tab(
+                            selected = index == selectedCategoriaIndex,
+                            onClick = {
+                                selectedCategoriaIndex = index
+                                selectedSubcategoriaId = null
+                            },
+                            text = { Text(categoria.nombre) }
+                        )
+                    }
                 }
+            }
+
+            val categoriaSeleccionada = categorias.getOrNull(selectedCategoriaIndex)
+            val subcatsFiltradas = subcategorias.filter {
+                it.categoria?.id == categoriaSeleccionada?.id
+            }
+
+            LazyRow(
+                modifier = Modifier.padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                categoryGroups.forEachIndexed { index, group ->
-                    Tab(
-                        selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
-                        text = { Text(group, fontWeight = FontWeight.SemiBold) }
+                items(subcatsFiltradas) { subcat ->
+                    AssistChip(
+                        onClick = { selectedSubcategoriaId = subcat.id },
+                        label = { Text(subcat.nombre) }
                     )
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        val filteredRecetas = if (searchQuery.isBlank()) {
-            recetas.filter { it.categoria?.nombre == categoryGroups.getOrNull(selectedTabIndex) }
-        } else {
-            recetas.filter { it.titulo.contains(searchQuery, ignoreCase = true) }
-        }
-
-        if (filteredRecetas.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "No se encontraron recetas para \"$searchQuery\"",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center
-                )
+            val recetasFiltradas = recetas.filter {
+                (selectedSubcategoriaId == null || it.subcategoria?.id == selectedSubcategoriaId) &&
+                        it.titulo.contains(searchQuery, true)
             }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 120.dp),
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                items(filteredRecetas, key = { it.id ?: 0 }) { receta ->
-                    CategoryCard(
-                        categoryName = receta.titulo,
-                        imageUrl = receta.imagenUrl,
-                        onCategoryClick = {
+
+            if (recetasFiltradas.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No hay recetas")
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(150.dp),
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(recetasFiltradas) { receta ->
+                        RecetaCard(receta = receta) {
                             navController.navigate("recipe_detail/${receta.id}")
                         }
-                    )
+                    }
                 }
             }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CategoryCard(
-    categoryName: String,
-    imageUrl: String?,
-    onCategoryClick: () -> Unit
-) {
-    Card(
-        onClick = onCategoryClick,
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(16.dp))) {
-            if (imageUrl.isNullOrBlank()) {
-                Image(
-                    painter = painterResource(id = com.example.receta_2.R.drawable.placeholder),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            Box(
-                modifier = Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black),
-                        startY = 200f
-                    )
-                )
-            )
-
-            Text(
-                text = categoryName,
-                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
         }
     }
 }

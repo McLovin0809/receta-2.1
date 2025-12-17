@@ -53,7 +53,7 @@ fun FavoritesScreen(
                         isFavorite = true,
                         onToggleFavorite = { favoritesViewModel.toggleFavorite(receta) },
                         onDetailsClick = { navController.navigate("recipe_detail/${receta.id}") },
-                        isLoggedIn = isLoggedIn
+                        isLoggedIn = { if (isLoggedIn) navController.navigate("login") }
                     )
                     Spacer(Modifier.padding(8.dp))
                 }

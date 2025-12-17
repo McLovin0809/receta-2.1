@@ -5,6 +5,7 @@ sealed class AppScreen(val route: String) {
     object Login : AppScreen("login")
     object Profile : AppScreen("profile")
 
+    object Register : AppScreen(ExtraRoutes.REGISTER)
 
 }
 
