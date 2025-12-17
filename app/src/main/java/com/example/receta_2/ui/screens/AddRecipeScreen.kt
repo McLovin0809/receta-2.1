@@ -107,7 +107,6 @@ fun AddRecipeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp) // Espaciado consistente
         ) {
 
-            // --- INICIO DEL COMPONENTE VISUAL PARA LA IMAGEN ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,7 +126,6 @@ fun AddRecipeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUri == null) {
-                    // Vista que se muestra si no hay imagen seleccionada
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -136,16 +134,14 @@ fun AddRecipeScreen(
                         Text("Toca para seleccionar una imagen", style = MaterialTheme.typography.bodyLarge)
                     }
                 } else {
-                    // Vista que muestra la imagen seleccionada usando Coil
                     AsyncImage(
                         model = imageUri,
                         contentDescription = "Imagen de la receta",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop // Para que la imagen cubra todo el espacio
+                        contentScale = ContentScale.Crop
                     )
                 }
             }
-            // --- FIN DEL COMPONENTE VISUAL PARA LA IMAGEN ---
 
 
             OutlinedTextField(titulo, { titulo = it }, label = { Text("Título") }, modifier = Modifier.fillMaxWidth())
@@ -183,7 +179,6 @@ fun AddRecipeScreen(
                 }
             }
 
-            // ===== SUBCATEGORIA =====
             ExposedDropdownMenuBox(
                 expanded = expandSubcategoria,
                 onExpandedChange = { expandSubcategoria = !expandSubcategoria }
@@ -221,7 +216,7 @@ fun AddRecipeScreen(
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    val currentUserId = userId // Obtenemos el valor actual del ID del usuario
+                    val currentUserId = userId
                     if (
                         titulo.isBlank() ||
                         descripcion.isBlank() ||
@@ -230,13 +225,12 @@ fun AddRecipeScreen(
                         categoriaSeleccionada == null ||
                         subcategoriaSeleccionada == null ||
                         currentUserId == null ||
-                        imageUri == null // Se añade la validación para la imagen
+                        imageUri == null
                     ) {
                         error = "Completa todos los campos, incluyendo la imagen"
                         return@Button
                     }
 
-                    // Se crea el objeto Receta, asumiendo que el modelo espera la URI como String
                     val receta = Receta(
                         titulo = titulo,
                         descripcion = descripcion,
@@ -245,7 +239,6 @@ fun AddRecipeScreen(
                         usuario = IdWrapper(id = currentUserId),
                         categoria = IdWrapper(categoriaSeleccionada!!.id),
                         subcategoria = IdWrapper(subcategoriaSeleccionada!!.id),
-                        // imagen = imageUri.toString() // Descomenta esta línea cuando tu modelo `Receta` tenga el campo `imagen`
                     )
 
                     recipeViewModel.crearReceta(

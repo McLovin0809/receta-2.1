@@ -6,7 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -28,19 +29,21 @@ fun RecipeDetailScreen(
 ) {
     val recipe by recipeViewModel.recetaDetalle.collectAsState()
 
+    val currentRecipe = recipe
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(recipe?.titulo ?: "Detalle", maxLines = 1) },
+                title = { Text(currentRecipe?.titulo ?: "Detalles de la receta") },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
         }
     ) { paddingValues ->
-        if (recipe == null) {
+        if (currentRecipe == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -56,37 +59,37 @@ fun RecipeDetailScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = recipe!!.titulo,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = currentRecipe.titulo,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp),
+                    contentScale = ContentScale.Crop
+                )
 
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(recipe!!.titulo, style = MaterialTheme.typography.headlineLarge)
+                    Text(currentRecipe.titulo, style = MaterialTheme.typography.headlineLarge)
                     Spacer(Modifier.height(8.dp))
-                    Text(recipe!!.descripcion, style = MaterialTheme.typography.bodyLarge)
+                    Text(currentRecipe.descripcion, style = MaterialTheme.typography.bodyLarge)
 
                     Divider(Modifier.padding(vertical = 24.dp))
                     Text("Ingredientes", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(16.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        recipe!!.ingredientes.lines()
+                        currentRecipe.ingredientes.split('\n')
                             .filter { it.isNotBlank() }
-                            .forEach { IngredientItem(it) }
+                            .forEach { ingredient -> IngredientItem(ingredient) }
                     }
 
                     Divider(Modifier.padding(vertical = 24.dp))
                     Text("Preparación", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(16.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        recipe!!.instrucciones.lines()
+                        currentRecipe.instrucciones.split('\n')
                             .filter { it.isNotBlank() }
                             .forEachIndexed { index, step -> StepItem(index + 1, step) }
                     }
@@ -94,10 +97,10 @@ fun RecipeDetailScreen(
             }
         }
     }
-
+}
 
 @Composable
-fun IngredientItem(text: String) {
+private fun IngredientItem(text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
@@ -111,9 +114,14 @@ fun IngredientItem(text: String) {
 }
 
 @Composable
-fun StepItem(stepNumber: Int, stepText: String) {
-    Row {
-        Text("$stepNumber.", style = MaterialTheme.typography.titleLarge)
+private fun StepItem(stepNumber: Int, stepText: String) {
+    Row(verticalAlignment = Alignment.Top) {
+        Text(
+            text = "$stepNumber.",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
         Spacer(Modifier.width(12.dp))
         Text(stepText, style = MaterialTheme.typography.bodyLarge)
     }

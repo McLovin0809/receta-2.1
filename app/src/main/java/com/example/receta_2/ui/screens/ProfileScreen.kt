@@ -14,11 +14,12 @@ fun ProfileScreen(
     authViewModel: AuthViewModel,
     onLogoutClick: () -> Unit
 ) {
+
     val user by authViewModel.user.collectAsState()
 
     Column(Modifier.padding(24.dp)) {
         Text("Perfil", style = MaterialTheme.typography.headlineMedium)
-        Text("Nombre: ${user?.nombre}")
+        Text("Nombre: ${user?.nombre ?: "No disponible"} ")
         Text("Email: ${user?.email}")
 
         Button(
