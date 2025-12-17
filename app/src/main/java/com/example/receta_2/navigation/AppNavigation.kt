@@ -4,7 +4,6 @@ package com.example.receta_2.navigation
 import androidx.compose.runtime.*
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
-import com.example.receta_2.data.model.Usuario
 import com.example.receta_2.ui.screens.*
 import com.example.receta_2.viewmodel.*
 
@@ -56,5 +55,15 @@ fun AppNavigation(
             }
         )
     }
+
+    composable("favorite") {
+        FavoritesScreen(
+            navController = navController,
+            favoritesViewModel = FavoritesViewModel(),
+            isLoggedIn = true
+        )
+
+    }
 }
 }
+
